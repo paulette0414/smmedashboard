@@ -1447,6 +1447,9 @@ function doEvaluate(schoolId) {
    marked Invalid. Backed by getAttachmentReview / reviewAttachment /
    reuploadAttachment in code.gs. ───────────────────────────────────────── */
 let docsModalSchoolId = "";
+let docsModalItems    = []; // the items currently shown in the modal — kept in sync
+                            // locally after a save/reupload so we don't need a
+                            // second round-trip to Apps Script just to refresh the view
 
 function openDocsModal(schoolId) {
   docsModalSchoolId = schoolId;
@@ -1461,6 +1464,7 @@ function openDocsModal(schoolId) {
 function closeDocsModal() {
   document.getElementById("docsOverlay").hidden = true;
   docsModalSchoolId = "";
+  docsModalItems = [];
 }
 
 function loadDocsModal() {
@@ -1471,7 +1475,8 @@ function loadDocsModal() {
           '<div class="docs-empty">' + escapeHtml(res.message || "Unable to load documents.") + '</div>';
         return;
       }
-      renderDocsModal(res.items || []);
+      docsModalItems = res.items || [];
+      renderDocsModal();
     })
     .catch(function (err) {
       document.getElementById("docsModalBody").innerHTML =
@@ -1479,9 +1484,16 @@ function loadDocsModal() {
     });
 }
 
-function renderDocsModal(items) {
+// Renders from docsModalItems (module-level state) rather than taking items
+// as a parameter — items are looked up by numeric index (idx) everywhere a
+// button needs to reference one, instead of embedding the criteria text
+// itself into an onclick string (criteria labels are long DepEd Order
+// paragraphs that can contain quotes/apostrophes/em dashes, which is fragile
+// to embed directly into inline HTML event handlers).
+function renderDocsModal() {
   const body = document.getElementById("docsModalBody");
   const canEvaluate = (session.role === "Admin" || session.role === "Evaluator");
+  const items = docsModalItems;
 
   if (!items.length) {
     body.innerHTML = '<div class="docs-empty">No documents were attached to this application.</div>';
@@ -1491,21 +1503,21 @@ function renderDocsModal(items) {
   let html = "";
   items.forEach(function (item, idx) {
     const status = item.status || "Pending";
-    const safeCrit = escapeHtml(item.criteria || "").replace(/'/g, "\\'");
     html += '<div class="docs-item">' +
       '<div class="docs-item-top">' +
         '<div class="docs-item-crit">' + escapeHtml(item.criteria || "(no criteria label)") + '</div>' +
-        '<span class="docs-status-pill ' + status + '">' + escapeHtml(status) + '</span>' +
+        '<span class="docs-status-pill ' + status + '" id="docsStatusPill_' + idx + '">' + escapeHtml(status) + '</span>' +
       '</div>' +
       '<div class="docs-item-file">' +
         (item.fileUrl
           ? ('📎 <a href="' + escapeHtml(item.fileUrl) + '" target="_blank" rel="noopener">' + escapeHtml(item.fileName || "View file") + '</a>')
           : '<em>No file attached.</em>') +
+      '</div>' +
+      '<div id="docsRemarksBlock_' + idx + '">' +
+        (item.remarks
+          ? ('<div class="docs-remarks"><strong>Remarks' + (item.reviewedBy ? ' (' + escapeHtml(item.reviewedBy) + (item.reviewedAt ? ", " + escapeHtml(item.reviewedAt) : "") + ')' : '') + ':</strong> ' + escapeHtml(item.remarks) + '</div>')
+          : '') +
       '</div>';
-
-    if (item.remarks) {
-      html += '<div class="docs-remarks"><strong>Remarks' + (item.reviewedBy ? ' (' + escapeHtml(item.reviewedBy) + (item.reviewedAt ? ", " + escapeHtml(item.reviewedAt) : "") + ')' : '') + ':</strong> ' + escapeHtml(item.remarks) + '</div>';
-    }
 
     if (canEvaluate) {
       html += '<div class="docs-review-row">' +
@@ -1515,12 +1527,12 @@ function renderDocsModal(items) {
           '<option value="Invalid"' + (status === 'Invalid' ? ' selected' : '') + '>Invalid</option>' +
         '</select>' +
         '<input type="text" id="docsRemarks_' + idx + '" placeholder="Remarks (optional)" value="' + escapeHtml(item.remarks || "") + '">' +
-        '<button type="button" onclick="doReviewAttachment(' + idx + ', \'' + safeCrit + '\')">Save</button>' +
+        '<button type="button" id="docsSaveBtn_' + idx + '" onclick="doReviewAttachment(' + idx + ')">Save</button>' +
       '</div>';
     } else if (status === "Invalid") {
-      html += '<div class="docs-reupload-row">' +
-        '<input type="file" id="docsReuploadFile_' + idx + '" style="display:none;" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="doReuploadAttachment(' + idx + ', \'' + safeCrit + '\')">' +
-        '<button type="button" onclick="document.getElementById(\'docsReuploadFile_' + idx + '\').click()">⬆ Re-upload corrected file</button>' +
+      html += '<div class="docs-reupload-row" id="docsReuploadRow_' + idx + '">' +
+        '<input type="file" id="docsReuploadFile_' + idx + '" style="display:none;" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="doReuploadAttachment(' + idx + ')">' +
+        '<button type="button" id="docsReuploadBtn_' + idx + '" onclick="document.getElementById(\'docsReuploadFile_' + idx + '\').click()">⬆ Re-upload corrected file</button>' +
       '</div>';
     }
 
@@ -1530,32 +1542,77 @@ function renderDocsModal(items) {
   body.innerHTML = html;
 }
 
-function doReviewAttachment(idx, criteria) {
+function doReviewAttachment(idx) {
+  const item    = docsModalItems[idx];
   const status  = document.getElementById('docsStatus_' + idx).value;
   const remarks = document.getElementById('docsRemarks_' + idx).value.trim();
-  callAppsScript('reviewAttachment', [session.token, docsModalSchoolId, criteria, status, remarks])
+  const btn     = document.getElementById('docsSaveBtn_' + idx);
+
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+
+  callAppsScript('reviewAttachment', [session.token, docsModalSchoolId, item.criteria, status, remarks])
     .then(function (res) {
-      if (!res.success) { alert(res.message); return; }
-      loadDocsModal();
+      if (!res.success) {
+        alert(res.message);
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+        return;
+      }
+      // Update our local copy and re-render instantly — no need to fetch the
+      // whole list again from Apps Script just to show what we already know.
+      item.status     = status;
+      item.remarks    = remarks;
+      item.reviewedBy = session.fullName || session.username;
+      item.reviewedAt = "just now";
+      renderDocsModal();
     })
-    .catch(function (err) { alert("Error: " + err.message); });
+    .catch(function (err) {
+      alert("Error: " + err.message);
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    });
 }
 
-function doReuploadAttachment(idx, criteria) {
+function doReuploadAttachment(idx) {
+  const item      = docsModalItems[idx];
   const fileInput = document.getElementById('docsReuploadFile_' + idx);
-  const file = fileInput.files[0];
+  const file      = fileInput.files[0];
   if (!file) return;
+
+  const btn = document.getElementById('docsReuploadBtn_' + idx);
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Uploading…";
 
   const reader = new FileReader();
   reader.onload = function (e) {
     const base64Content = e.target.result.split(",")[1];
-    callAppsScript('reuploadAttachment', [session.token, docsModalSchoolId, criteria, file.name, base64Content])
+    callAppsScript('reuploadAttachment', [session.token, docsModalSchoolId, item.criteria, file.name, base64Content])
       .then(function (res) {
-        if (!res.success) { alert(res.message); fileInput.value = ""; return; }
+        if (!res.success) {
+          alert(res.message);
+          fileInput.value = "";
+          btn.disabled = false;
+          btn.textContent = originalLabel;
+          return;
+        }
+        item.fileUrl    = res.fileUrl || item.fileUrl;
+        item.fileName   = file.name;
+        item.status     = "Pending";
+        item.remarks    = "";
+        item.reviewedBy = "";
+        item.reviewedAt = "";
         alert("Corrected file uploaded. It will be reviewed again.");
-        loadDocsModal();
+        renderDocsModal();
       })
-      .catch(function (err) { alert("Error: " + err.message); fileInput.value = ""; });
+      .catch(function (err) {
+        alert("Error: " + err.message);
+        fileInput.value = "";
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      });
   };
   reader.readAsDataURL(file);
 }
