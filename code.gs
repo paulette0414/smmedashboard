@@ -57,7 +57,11 @@ const API_WHITELIST = {
   setUserStatus: setUserStatus,
   createAdminAccount: createAdminAccount,
   // ── Evaluator/Admin-only (new; checks the session role itself) ────────────
-  evaluateApplication: evaluateApplication
+  evaluateApplication: evaluateApplication,
+  // ── Per-attachment document review (new; checks permissions itself) ───────
+  getAttachmentReview: getAttachmentReview,
+  reviewAttachment: reviewAttachment,
+  reuploadAttachment: reuploadAttachment
   // NOTE: updateStatus() is intentionally NOT exposed directly — it has no
   // permission check of its own. evaluateApplication() wraps it with a
   // role check instead. Call updateStatus() directly only from the Apps
@@ -203,6 +207,106 @@ function formatMovAttachments_(rawJson) {
   }).join("\n\n");
 }
 
+// ── Per-attachment document review (new) ────────────────────────────────────
+// Column R (18) stores a JSON array — one entry per Required-Document row the
+// applicant attached a MOV to — carrying its own review state so an
+// Evaluator/Admin can mark each attachment Valid/Invalid with remarks, and
+// the applicant can see that feedback and re-upload just the corrected file,
+// without resubmitting the whole application form. Column P (16) stays the
+// plain-text summary for anyone browsing the raw Sheet; this JSON column is
+// the source of truth the API actually reads/writes.
+// Item shape: { criteria, requirement, fileUrl, fileName, status, remarks,
+//               reviewedBy, reviewedAt }
+// status is one of "Pending" (not yet reviewed, or just re-uploaded and
+// awaiting re-review), "Valid", "Invalid".
+const MOV_REVIEW_COL = 18;
+
+function readMovReviewData_(sheet, rowIndex1based) {
+  const raw = sheet.getRange(rowIndex1based, MOV_REVIEW_COL).getValue();
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeMovReviewData_(sheet, rowIndex1based, items) {
+  if (!sheet.getRange(1, MOV_REVIEW_COL).getValue()) {
+    sheet.getRange(1, MOV_REVIEW_COL).setValue("MOV Review Data (JSON — used by the app, not meant to be hand-edited)");
+  }
+  sheet.getRange(rowIndex1based, MOV_REVIEW_COL).setValue(JSON.stringify(items || []));
+}
+
+// Merges a freshly-submitted batch of MOV attachments (from saveSchool's
+// data.movAttachments — array of {criteria, requirement, fileUrl, fileName})
+// into whatever review data already existed for this row, keyed by the
+// (stable, per application type) criteria text:
+//   • Same criteria + same fileUrl as before → keep its existing
+//     status/remarks/reviewedBy/reviewedAt untouched.
+//   • Same criteria but a different fileUrl (a corrected re-upload) → reset
+//     to status "Pending" so it gets reviewed again, and clear old remarks.
+//   • A criteria not present in this batch → left as-is (never dropped),
+//     so a resubmission that only touches some rows can't wipe the rest.
+function mergeMovReviewData_(existingItems, rawIncomingJson) {
+  const existing = Array.isArray(existingItems) ? existingItems : [];
+  let incoming;
+  try {
+    incoming = JSON.parse((rawIncomingJson || "").toString().trim() || "[]");
+  } catch (e) {
+    incoming = [];
+  }
+  if (!Array.isArray(incoming) || incoming.length === 0) return existing;
+
+  const byCriteria = {};
+  existing.forEach(function (item) {
+    const key = ((item && item.criteria) || "").toString().trim();
+    if (key) byCriteria[key] = item;
+  });
+
+  incoming.forEach(function (item) {
+    const key = ((item && item.criteria) || "").toString().trim();
+    if (!key) return;
+    const prior = byCriteria[key];
+    const fileUrl = (item && item.fileUrl) || "";
+    if (prior && prior.fileUrl === fileUrl) {
+      byCriteria[key] = Object.assign({}, prior, {
+        requirement: (item && item.requirement) || prior.requirement || "",
+        fileName: (item && item.fileName) || prior.fileName || ""
+      });
+    } else {
+      byCriteria[key] = {
+        criteria: key,
+        requirement: (item && item.requirement) || "",
+        fileUrl: fileUrl,
+        fileName: (item && item.fileName) || "",
+        status: "Pending",
+        remarks: "",
+        reviewedBy: "",
+        reviewedAt: ""
+      };
+    }
+  });
+
+  return Object.keys(byCriteria).map(function (k) { return byCriteria[k]; });
+}
+
+// Renders the merged review items as the human-readable text stored in
+// column P — same format as before (numbered, clickable Drive links), plus
+// a status/remarks line whenever an item has actually been reviewed, so
+// admins browsing the raw Sheet can see review progress at a glance.
+function formatMovReviewText_(items) {
+  if (!items || !items.length) return "";
+  return items.map(function (item, idx) {
+    const label = (item.status && item.status !== "Pending") ? " [" + item.status + "]" : "";
+    let block = (idx + 1) + ". " + (item.criteria || "(no criteria label)") + label +
+      "\n   File: " + (item.fileName || "") +
+      "\n   Link: " + (item.fileUrl || "");
+    if (item.remarks) block += "\n   Remarks: " + item.remarks;
+    return block;
+  }).join("\n\n");
+}
+
 function saveSchool(data) {
   const ss    = SpreadsheetApp.openById("1Yc-DDDU8muIS5HR0OWoLclUnK6RGPrcVe_ydYlgWOYI");
   const sheet = ss.getSheetByName("SchoolData");
@@ -221,7 +325,6 @@ function saveSchool(data) {
 
   const emailAddr    = (data.emailAddress  || "").toString().trim();
   const documentLink = (data.documentLink  || "").toString().trim();
-  const movAttachments = formatMovAttachments_(data.movAttachments);
 
   if (rowIndex !== -1) {
     // ── UPDATE existing row ──────────────────────────────────────────────────
@@ -245,17 +348,25 @@ function saveSchool(data) {
     sheet.getRange(rowIndex + 2, 13).setValue(dateSubmitted);
     // Col N (14): Status — intentionally skipped on update
     // Col O (15): Application Code — intentionally skipped on update
-    // Update MOV Attachments (col P) only if new attachments were provided
-    if (movAttachments) {
-      const movCell = sheet.getRange(rowIndex + 2, 16);
-      movCell.setValue(movAttachments);
-      movCell.setWrap(true); // so the multi-line, clickable-link text is visible in the cell
-    }
+
+    // Merge any newly-submitted MOV attachments into the existing per-document
+    // review data (col R), then re-render the human-readable summary (col P)
+    // from that merged result — see mergeMovReviewData_ for why this never
+    // loses previously-attached rows or previously-recorded review status.
+    const existingReview = readMovReviewData_(sheet, rowIndex + 2);
+    const mergedReview    = mergeMovReviewData_(existingReview, data.movAttachments);
+    writeMovReviewData_(sheet, rowIndex + 2, mergedReview);
+    const movCell = sheet.getRange(rowIndex + 2, 16);
+    movCell.setValue(formatMovReviewText_(mergedReview));
+    movCell.setWrap(true); // so the multi-line, clickable-link text is visible in the cell
+
     return "School record updated successfully.";
 
   } else {
     // ── INSERT new row ───────────────────────────────────────────────────────
     const applicationCode = (data.applicationCode || "").toString().trim() || generateApplicationCode();
+    const initialReview   = mergeMovReviewData_([], data.movAttachments);
+    const movAttachments  = formatMovReviewText_(initialReview);
 
     sheet.appendRow([
       data.schoolId,        // A  col 1
@@ -276,6 +387,7 @@ function saveSchool(data) {
       movAttachments        // P  col 16 — MOV Attachments (readable text with clickable Drive links)
     ]);
     sheet.getRange(sheet.getLastRow(), 16).setWrap(true); // so multi-line MOV links are visible in the cell
+    writeMovReviewData_(sheet, sheet.getLastRow(), initialReview);
 
     // ── Send acknowledgment email for NEW submissions only ───────────────────
     if (emailAddr) {
@@ -855,6 +967,117 @@ function evaluateApplication(token, schoolId, decision, remarks) {
   }
 
   return { success: true, message: message };
+}
+
+// ── Per-attachment document review: view / decide / re-upload ──────────────
+// Shared lookup: returns { sheet, rowIndex1based, ownerEmail } or null.
+function findSchoolRow_(schoolId) {
+  const ss    = SpreadsheetApp.openById("1Yc-DDDU8muIS5HR0OWoLclUnK6RGPrcVe_ydYlgWOYI");
+  const sheet = ss.getSheetByName("SchoolData");
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+  const idx = ids.findIndex(function (v) { return v.toString().trim() === (schoolId || "").toString().trim(); });
+  if (idx === -1) return null;
+  const row1based = idx + 2;
+  const ownerEmail = (sheet.getRange(row1based, 12).getValue() || "").toString().trim().toLowerCase();
+  const applicationCode = (sheet.getRange(row1based, 15).getValue() || "").toString().trim();
+  return { sheet: sheet, rowIndex1based: row1based, ownerEmail: ownerEmail, applicationCode: applicationCode };
+}
+
+// Admin/Evaluator can view any application's attachments; a User can only
+// view their own (matched by the email on their account, same rule as
+// getMySubmissions()).
+function getAttachmentReview(token, schoolId) {
+  const session = getSession_(token);
+  if (!session) return { success: false, message: "Session expired. Please log in again." };
+
+  const found = findSchoolRow_(schoolId);
+  if (!found) return { success: false, message: "Application not found." };
+
+  if (session.role !== "Admin" && session.role !== "Evaluator") {
+    const myEmail = (session.email || "").toString().trim().toLowerCase();
+    if (!myEmail || myEmail !== found.ownerEmail) {
+      return { success: false, message: "Access denied." };
+    }
+  }
+
+  const items = readMovReviewData_(found.sheet, found.rowIndex1based);
+  return { success: true, schoolId: schoolId, applicationCode: found.applicationCode, items: items };
+}
+
+// Evaluator/Admin-only: mark one attachment Valid/Invalid (or back to
+// Pending) with optional remarks, identified by its criteria label (stable
+// per application type — see mergeMovReviewData_).
+function reviewAttachment(token, schoolId, criteria, status, remarks) {
+  const session = getSession_(token);
+  if (!session || (session.role !== "Evaluator" && session.role !== "Admin")) {
+    return { success: false, message: "Access denied." };
+  }
+  if (status !== "Pending" && status !== "Valid" && status !== "Invalid") {
+    return { success: false, message: "Invalid status." };
+  }
+
+  const found = findSchoolRow_(schoolId);
+  if (!found) return { success: false, message: "Application not found." };
+
+  const items = readMovReviewData_(found.sheet, found.rowIndex1based);
+  const key = (criteria || "").toString().trim();
+  const item = items.find(function (it) { return (it.criteria || "").toString().trim() === key; });
+  if (!item) return { success: false, message: "Attachment not found." };
+
+  item.status     = status;
+  item.remarks    = (remarks || "").toString().trim();
+  item.reviewedBy = session.fullName || session.username;
+  item.reviewedAt = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
+
+  writeMovReviewData_(found.sheet, found.rowIndex1based, items);
+  const movCell = found.sheet.getRange(found.rowIndex1based, 16);
+  movCell.setValue(formatMovReviewText_(items));
+  movCell.setWrap(true);
+
+  return { success: true, message: "Marked '" + key + "' as " + status + "." };
+}
+
+// Lets the owning User (or an Admin, for support cases) replace one
+// attachment's file — e.g. after an Evaluator marks it Invalid — without
+// resubmitting the whole application. Resets that item back to "Pending"
+// and clears its old remarks so it lines up for another review pass.
+function reuploadAttachment(token, schoolId, criteria, fileName, base64Data) {
+  const session = getSession_(token);
+  if (!session) return { success: false, message: "Session expired. Please log in again." };
+
+  const found = findSchoolRow_(schoolId);
+  if (!found) return { success: false, message: "Application not found." };
+
+  if (session.role !== "Admin") {
+    const myEmail = (session.email || "").toString().trim().toLowerCase();
+    if (!myEmail || myEmail !== found.ownerEmail) {
+      return { success: false, message: "Access denied." };
+    }
+  }
+
+  const items = readMovReviewData_(found.sheet, found.rowIndex1based);
+  const key = (criteria || "").toString().trim();
+  const item = items.find(function (it) { return (it.criteria || "").toString().trim() === key; });
+  if (!item) return { success: false, message: "Attachment not found." };
+
+  const uploadResult = uploadFileToDrive(fileName, base64Data, schoolId, found.applicationCode);
+  if (!uploadResult.success) return { success: false, message: uploadResult.message };
+
+  item.fileUrl    = uploadResult.fileUrl;
+  item.fileName   = uploadResult.fileName;
+  item.status     = "Pending";
+  item.remarks    = "";
+  item.reviewedBy = "";
+  item.reviewedAt = "";
+
+  writeMovReviewData_(found.sheet, found.rowIndex1based, items);
+  const movCell = found.sheet.getRange(found.rowIndex1based, 16);
+  movCell.setValue(formatMovReviewText_(items));
+  movCell.setWrap(true);
+
+  return { success: true, message: "Corrected file uploaded. It will be reviewed again.", fileUrl: uploadResult.fileUrl };
 }
 
 // ── ONE-TIME SETUP ────────────────────────────────────────────────────────

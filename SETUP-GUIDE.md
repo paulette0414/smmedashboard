@@ -2,9 +2,9 @@
 
 Ito na ang bagong bersyon ng SMME Dashboard mo — bumalik na ito sa **Google Apps Script** bilang backend (Google Sheets + Google Drive + Gmail/MailApp, tulad ng talagang orihinal na file mo), at dinagdagan ng **login system na may tatlong klase ng account**:
 
-- **Admin** — ikaw. Buong access: nakikita lahat ng application, puwedeng mag-approve/mag-reject, at puwedeng mamahala ng mga account (approve/disable) sa bagong "Manage Users" tab.
-- **Evaluator** — puwedeng mag-self-register, pero kailangan mo munang i-approve (Pending muna) bago sila makapag-login. Pagka-login, makikita nila lahat ng applications at puwede silang mag-decide (Approved / Rejected / Pending) kasama ng remarks. Hindi na nila nakikita ang "Application Form" — review lang ang trabaho nila.
-- **User** (mga applicant/schools) — puwedeng mag-self-register at agad-agad Active, walang paghihintay. Pagka-login, ang makikita lang nila ay yung sarili nilang mga na-submit na application (batay sa email address na ginamit nila nung nag-register sila).
+- **Admin** — ikaw. Buong access: nakikita lahat ng application, puwedeng mag-approve/mag-reject, puwedeng mag-review ng bawat naka-attach na document (Valid/Invalid + remarks), at puwedeng mamahala ng mga account (approve/disable) sa bagong "Manage Users" tab.
+- **Evaluator** — puwedeng mag-self-register, pero kailangan mo munang i-approve (Pending muna) bago sila makapag-login. Pagka-login, makikita nila lahat ng applications, puwede silang mag-decide (Approved / Rejected / Pending) kasama ng remarks, at — bago pa man iyon — puwede na nilang buksan ang bawat naka-attach na requirement/MOV at markahan itong **Valid** o **Invalid** na may sariling remarks bawat isa (bagong "Documents" button sa Application Status tab). Hindi na nila nakikita ang "Application Form" — review lang ang trabaho nila.
+- **User** (mga applicant/schools) — puwedeng mag-self-register at agad-agad Active, walang paghihintay. Pagka-login, ang makikita lang nila ay yung sarili nilang mga na-submit na application (batay sa email address na ginamit nila nung nag-register sila). Puwede rin nilang buksan ang parehong "Documents" button para makita kung Valid/Invalid ang bawat naka-attach nilang requirement, kasama ang remarks ng Evaluator, at kung meron mang na-markang Invalid, may button silang **"Re-upload corrected file"** para palitan lang yung isang file na iyon — hindi na nila kailangang i-resubmit ulit yung buong application.
 
 Ang website mo (index.html) ay may bagong login screen sa harap, pero pareho pa rin ang disenyo/logo/kulay — DepEd navy at gold pa rin, at lahat ng dating features (Application Form, Application Status, Downloadable Forms, dashboard) ay nandiyan pa rin, gumagana pa rin nang eksakto tulad ng dati.
 
@@ -70,15 +70,24 @@ netlify.toml                        ← palitan ang luma
 
 Awtomatikong gagawa ang bagong code.gs ng **bagong tab** sa parehong Google Sheet mo, pangalang **"Users"** — dito nakatago ang mga account (username, naka-encrypt na password, role, buong pangalan, email, petsa, at status). Hindi mo na kailangang gawin ito manually — awtomatiko itong nabubuo sa unang beses na tatawagin ang alinmang login/register function.
 
-Wala nang ibang binago sa "SchoolData" o "Settings" tabs mo — pareho pa rin ang mga column, maliban sa isang bago at opsyonal na column **Q ("Evaluation Remarks")** na awtomatikong idadagdag kapag unang gumamit ng "Evaluate" ang isang Evaluator/Admin (para doon nakatago ang mga puna/remarks nila sa bawat desisyon).
+Wala nang ibang binago sa "SchoolData" o "Settings" tabs mo — pareho pa rin ang mga column, maliban sa dalawang bago at opsyonal na column: **Q ("Evaluation Remarks")** na awtomatikong idadagdag kapag unang gumamit ng "Evaluate" ang isang Evaluator/Admin (para doon nakatago ang mga puna/remarks nila sa bawat desisyon), at **R ("MOV Review Data")** na kung saan nakatago ang status (Valid/Invalid/Pending) at remarks ng bawat individual na naka-attach na document — ito yung pinagbabatayan ng bagong "Documents" review feature na tatalakayin sa susunod na bahagi. Huwag itong i-edit nang direkta sa Sheet — JSON data ito na binabasa/binabago ng system mismo.
 
-## Bahagi 6 — Paano gagamitin ng mga tao ang bagong login
+## Bahagi 6 — Bagong feature: Pag-review ng bawat naka-attach na document
+
+Bago ang "Approved/Rejected" na desisyon sa buong application, may bago na ring paraan para tingnan at markahan ang **bawat individual na naka-attach na requirement/MOV**:
+
+1. Sa Application Status tab (Admin/Evaluator/User), may bagong column na **"Documents"** — i-click ang button doon (📄 Review para sa Admin/Evaluator, 📄 View para sa User) para buksan ang listahan ng lahat ng naka-attach na files para sa application na iyon.
+2. **Bilang Evaluator o Admin:** makikita mo ang bawat attachment kasama ang link para buksan/tingnan ang file, isang dropdown (Pending / Valid / Invalid), at isang remarks box. Piliin ang status, maglagay ng remarks kung kailangan, i-click **Save** — per-document ito, kaya iba-iba puwedeng markahan ang bawat isa sa parehong application.
+3. **Bilang User:** makikita mo ang parehong listahan pero read-only — status pill (Pending/Valid/Invalid) at ang remarks ng Evaluator kung meron. Sa alinmang naka-mark na **Invalid**, may lalabas na button na **"⬆ Re-upload corrected file"** — doon ka na lang mag-a-attach ng bagong file para doon lang sa specific na requirement na iyon (hindi na kailangang i-resubmit ang buong application form). Awtomatikong babalik sa "Pending" ang status pagkatapos, para malaman ng Evaluator na kailangan na itong i-review ulit.
+4. **Mahalaga:** ang feature na ito ay gumagana lang sa mga bagong application (o mga existing application na na-resave/na-touch) simula sa pag-deploy ng update na ito — kasi doon lang nag-uumpisang ma-populate ang bagong column R. Kung may mga lumang application ka na sa Sheet bago ang update na ito, walang lalabas na documents doon hangga't hindi na-re-save ang record na iyon (hal. sa pamamagitan ng isang bagong MOV upload).
+
+## Bahagi 7 — Paano gagamitin ng mga tao ang bagong login
 
 - **Ikaw (Admin):** mag-login gamit ang `admin` / `ChangeThisPassword123` (Bahagi 2), agad palitan ang password gamit ang "CHANGE PASSWORD" button. Makikita mo lahat ng application, at may extra tab kang "Manage Users" kung saan mo maa-approve o madi-disable ang mga Evaluator/User account.
 - **Mga Evaluator (hal. mga taga-SGOD na mag-rereview):** ituro mo sa kanila na pumunta sa site, i-click ang "Register" tab, piliin ang role na "Evaluator", at magparehistro. Sasabihin sa kanila na "Pending pa ang account, hihintayin ang admin approval" — dito ka na papasok: buksan mo ang "Manage Users" tab, hanapin ang account nila, i-click **Approve**. Pagkatapos, puwede na silang mag-login.
 - **Mga applicant/schools (User):** ituro mo rin sa kanila na mag-Register, piliin ang role na "User" — agad silang makaka-login pagkatapos, walang paghihintay. **Mahalaga:** ang email address na gagamitin nila sa pag-register ang siya ring dapat nilang ilagay sa "Email Address" field ng Application Form nila — ito ang ginagamit ng system para malaman kung aling mga submission ang sa kanila. (Awtomatiko na itong nilalagay at nili-lock ng system sa form kapag naka-login sila bilang User, para hindi na sila magkakamali.)
 
-## Bahagi 7 — Testing
+## Bahagi 8 — Testing
 
 1. Buksan ang live site mo, dapat lumabas agad ang login screen (hindi na direktang bukas ang dashboard).
 2. Mag-login bilang admin (Bahagi 2), palitan ang password.
@@ -86,6 +95,7 @@ Wala nang ibang binago sa "SchoolData" o "Settings" tabs mo — pareho pa rin an
 4. Habang nag-tetest, tingnan kung natatanggap ang email notifications (office notification + acknowledgment sa applicant). **Kung walang email na dumarating**, buksan ang Apps Script editor mo → **Executions** (kaliwang sidebar, icon na parang orasan) → hanapin ang pinaka-huling `saveSchool` execution → tingnan kung may error doon tungkol sa MailApp/permissions. Ito yung dating isyu na binanggit sa itaas — hindi ito hadlang sa ibang parte ng system, pero sabihin mo sa akin kung nangyari ito para maayos natin muli.
 5. Mag-register ng test Evaluator account, i-approve mo ito sa "Manage Users", mag-login bilang Evaluator, tapos subukan mag-Approve/Reject ng test application sa "Application Status" — dapat lumabas ang desisyon at remarks doon.
 6. Subukan din i-disable ang isang test account sa "Manage Users" — dapat hindi na sila makapag-login pagkatapos.
+7. Sa parehong test application, mag-attach ng ilang MOV files bago i-submit. Pagkatapos, mag-login bilang Evaluator, buksan ang "Documents" button para doon, markahan ang isa **Invalid** na may remarks, at isa **Valid**. Mag-login pabalik bilang yung test User — dapat makita nila ang parehong status/remarks sa kanilang sariling "Documents" view, at may **"Re-upload corrected file"** button sa naka-Invalid na item. Subukan mag-reupload — dapat mag-Pending ulit ang status noon, at hindi dapat maapektuhan yung isa pang item (Valid pa rin dapat).
 
 ## Buod ng mga bagong function sa code.gs (kung sakaling kailangan mo i-check)
 
@@ -99,6 +109,9 @@ Wala nang ibang binago sa "SchoolData" o "Settings" tabs mo — pareho pa rin an
 | `getMySubmissions` | Naka-login | User: sariling submissions lang. Admin/Evaluator: lahat |
 | `listUsers` / `setUserStatus` | Admin lang | Tingnan/i-approve/i-disable ang mga account |
 | `createAdminAccount` | Admin lang | Gumawa ng dagdag na Admin account |
-| `evaluateApplication` | Evaluator/Admin lang | Mag-decide (Approved/Rejected/Pending) + remarks |
+| `evaluateApplication` | Evaluator/Admin lang | Mag-decide (Approved/Rejected/Pending) + remarks sa BUONG application |
+| `getAttachmentReview` | Naka-login | Ibinabalik ang listahan ng lahat ng naka-attach na document + status/remarks nito (Admin/Evaluator: kahit anong application; User: sariling application lang) |
+| `reviewAttachment` | Evaluator/Admin lang | Markahan ang isang partikular na document na Valid/Invalid/Pending + remarks |
+| `reuploadAttachment` | May-ari ng application (User) o Admin | Palitan ang file ng isang partikular na document, ibabalik sa Pending ang status nito |
 
 Ang lahat ng ibang function (submission, dashboard stats, file upload, requirements, atbp.) ay **hindi ginalaw** — eksakto pa rin ito sa orihinal mong code.gs.

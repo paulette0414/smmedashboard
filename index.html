@@ -220,6 +220,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .eval-cell{ white-space:nowrap; }
 .eval-cell select{ display:inline-block; width:auto; padding:6px 8px; font-size:12px; margin-right:6px; }
 .eval-cell button{ display:inline-block; width:auto; padding:6px 12px; font-size:12px; background:linear-gradient(135deg,var(--deped-navy),var(--deped-blue)); }
+.records td .docs-view-btn, .records td button{ display:inline-block; width:auto; padding:6px 12px; font-size:12px; white-space:nowrap; }
 
 /* ── Downloadable Forms list ───────────────────────────────────────────── */
 .forms-list{ display:flex; flex-direction:column; gap:10px; }
@@ -384,6 +385,45 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 #authMessage.ok{ color:var(--ok); font-weight:700; }
 .auth-hint{ font-size:11.5px; color:var(--muted); margin-top:10px; text-align:center; }
 
+/* ── Document review modal (new) ──────────────────────────────────────── */
+#docsOverlay{
+  position:fixed; inset:0; z-index:1100; background:rgba(6,38,92,0.55);
+  display:flex; align-items:flex-start; justify-content:center; padding:40px 20px; overflow-y:auto;
+}
+#docsOverlay[hidden]{ display:none; }
+.docs-modal{
+  width:100%; max-width:760px; background:#fff; border-radius:14px; overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,0.4);
+}
+.docs-modal-header{
+  padding:18px 24px; background:linear-gradient(135deg,var(--deped-navy),var(--deped-blue));
+  color:#fff; display:flex; align-items:center; justify-content:space-between;
+}
+.docs-modal-header h3{ margin:0; font-size:16px; }
+.docs-modal-header .sub{ font-size:12px; opacity:0.85; margin-top:2px; }
+.docs-modal-close{ width:auto; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); padding:6px 12px; font-size:12px; }
+.docs-modal-body{ padding:20px 24px; max-height:70vh; overflow-y:auto; }
+.docs-item{ border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+.docs-item-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.docs-item-crit{ font-weight:700; font-size:13.5px; color:var(--text); flex:1; min-width:200px; }
+.docs-item-file{ font-size:12px; margin-top:4px; }
+.docs-item-file a{ color:var(--deped-blue); }
+.docs-status-pill{
+  display:inline-block; font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
+  padding:3px 10px; border-radius:10px; color:#fff; white-space:nowrap;
+}
+.docs-status-pill.Pending{ background:var(--warn); }
+.docs-status-pill.Valid{ background:var(--ok); }
+.docs-status-pill.Invalid{ background:var(--err); }
+.docs-remarks{ font-size:12px; color:var(--muted); margin-top:8px; padding:8px 10px; background:var(--deped-blue-soft); border-radius:6px; }
+.docs-review-row{ margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.docs-review-row select{ width:auto; padding:6px 8px; font-size:12px; }
+.docs-review-row input[type="text"]{ flex:1; min-width:180px; padding:6px 8px; font-size:12px; }
+.docs-review-row button{ width:auto; padding:6px 14px; font-size:12px; }
+.docs-reupload-row{ margin-top:10px; }
+.docs-reupload-row button{ width:auto; padding:6px 14px; font-size:12px; background:linear-gradient(135deg,var(--warn),#b45309); }
+.docs-empty{ text-align:center; color:var(--muted); font-size:13px; padding:20px; }
+
 /* ── Mobile responsiveness ─────────────────────────────────────────────── */
 @media (max-width: 880px){
   .app{ flex-direction:column; box-shadow:none; }
@@ -453,6 +493,22 @@ table.records tbody tr:hover{ background:#f4f8ff; }
         <div class="auth-hint">Evaluator accounts need Admin approval before you can log in. Applicant/School accounts can log in right away.</div>
       </form>
       <div id="authMessage"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ DOCUMENT REVIEW MODAL (new) ══════════════════════════ -->
+<div id="docsOverlay" hidden onclick="if(event.target===this) closeDocsModal();">
+  <div class="docs-modal">
+    <div class="docs-modal-header">
+      <div>
+        <h3>Submitted Documents</h3>
+        <div class="sub" id="docsModalSub">—</div>
+      </div>
+      <button type="button" class="docs-modal-close" onclick="closeDocsModal()">✕ Close</button>
+    </div>
+    <div class="docs-modal-body" id="docsModalBody">
+      <div class="docs-empty">Loading…</div>
     </div>
   </div>
 </div>
@@ -1335,12 +1391,13 @@ function renderRecords() {
 
   let html = '<div class="records-scroll"><table class="records"><thead><tr>' +
     '<th>Application Code</th><th>School ID</th><th>School Name</th><th>Courses Offered</th><th>School Year</th>' +
-    '<th>District</th><th>Sector</th><th>Application Type</th><th>Date Submitted</th><th>Status</th>' +
+    '<th>District</th><th>Sector</th><th>Application Type</th><th>Date Submitted</th><th>Status</th><th>Documents</th>' +
     (canEvaluate ? '<th>Evaluate</th>' : '') +
     '</tr></thead><tbody>';
 
   filtered.forEach(function (r) {
     const statusClass = ["Pending", "Approved", "Rejected"].includes(r.status) ? r.status : "Other";
+    const safeId = escapeHtml(r.schoolId).replace(/'/g, "\\'");
     html += '<tr>' +
       '<td>' + escapeHtml(r.applicationCode) + '</td>' +
       '<td>' + escapeHtml(r.schoolId) + '</td>' +
@@ -1351,9 +1408,10 @@ function renderRecords() {
       '<td>' + escapeHtml(r.sector) + '</td>' +
       '<td>' + escapeHtml(r.applicationType) + '</td>' +
       '<td>' + escapeHtml(r.dateSubmitted) + '</td>' +
-      '<td><span class="badge ' + statusClass + '">' + escapeHtml(r.status) + '</span></td>';
+      '<td><span class="badge ' + statusClass + '">' + escapeHtml(r.status) + '</span></td>' +
+      '<td><button type="button" onclick="openDocsModal(\'' + safeId + '\')">' +
+        (canEvaluate ? '📄 Review' : '📄 View') + '</button></td>';
     if (canEvaluate) {
-      const safeId = escapeHtml(r.schoolId).replace(/'/g, "\\'");
       html += '<td class="eval-cell">' +
         '<select id="evalDecision_' + safeId + '">' +
           '<option value="Approved"' + (r.status === 'Approved' ? ' selected' : '') + '>Approved</option>' +
@@ -1380,6 +1438,126 @@ function doEvaluate(schoolId) {
       loadRecords();
     })
     .catch(function (err) { alert("Error: " + err.message); });
+}
+
+/* ── Per-document review modal (new) ─────────────────────────────────────
+   Admin/Evaluator: see every attached MOV for an application, mark each one
+   Valid/Invalid with remarks. User: see the same list read-only for their
+   own applications, plus a "Re-upload corrected file" action on anything
+   marked Invalid. Backed by getAttachmentReview / reviewAttachment /
+   reuploadAttachment in code.gs. ───────────────────────────────────────── */
+let docsModalSchoolId = "";
+
+function openDocsModal(schoolId) {
+  docsModalSchoolId = schoolId;
+  const record = allRecords.find(function (r) { return (r.schoolId || "") === schoolId; });
+  document.getElementById("docsModalSub").textContent =
+    (record ? (record.schoolName + " — " + record.applicationCode) : schoolId);
+  document.getElementById("docsModalBody").innerHTML = '<div class="docs-empty">Loading…</div>';
+  document.getElementById("docsOverlay").hidden = false;
+  loadDocsModal();
+}
+
+function closeDocsModal() {
+  document.getElementById("docsOverlay").hidden = true;
+  docsModalSchoolId = "";
+}
+
+function loadDocsModal() {
+  callAppsScript('getAttachmentReview', [session.token, docsModalSchoolId])
+    .then(function (res) {
+      if (!res.success) {
+        document.getElementById("docsModalBody").innerHTML =
+          '<div class="docs-empty">' + escapeHtml(res.message || "Unable to load documents.") + '</div>';
+        return;
+      }
+      renderDocsModal(res.items || []);
+    })
+    .catch(function (err) {
+      document.getElementById("docsModalBody").innerHTML =
+        '<div class="docs-empty">Error: ' + escapeHtml(err.message) + '</div>';
+    });
+}
+
+function renderDocsModal(items) {
+  const body = document.getElementById("docsModalBody");
+  const canEvaluate = (session.role === "Admin" || session.role === "Evaluator");
+
+  if (!items.length) {
+    body.innerHTML = '<div class="docs-empty">No documents were attached to this application.</div>';
+    return;
+  }
+
+  let html = "";
+  items.forEach(function (item, idx) {
+    const status = item.status || "Pending";
+    const safeCrit = escapeHtml(item.criteria || "").replace(/'/g, "\\'");
+    html += '<div class="docs-item">' +
+      '<div class="docs-item-top">' +
+        '<div class="docs-item-crit">' + escapeHtml(item.criteria || "(no criteria label)") + '</div>' +
+        '<span class="docs-status-pill ' + status + '">' + escapeHtml(status) + '</span>' +
+      '</div>' +
+      '<div class="docs-item-file">' +
+        (item.fileUrl
+          ? ('📎 <a href="' + escapeHtml(item.fileUrl) + '" target="_blank" rel="noopener">' + escapeHtml(item.fileName || "View file") + '</a>')
+          : '<em>No file attached.</em>') +
+      '</div>';
+
+    if (item.remarks) {
+      html += '<div class="docs-remarks"><strong>Remarks' + (item.reviewedBy ? ' (' + escapeHtml(item.reviewedBy) + (item.reviewedAt ? ", " + escapeHtml(item.reviewedAt) : "") + ')' : '') + ':</strong> ' + escapeHtml(item.remarks) + '</div>';
+    }
+
+    if (canEvaluate) {
+      html += '<div class="docs-review-row">' +
+        '<select id="docsStatus_' + idx + '">' +
+          '<option value="Pending"' + (status === 'Pending' ? ' selected' : '') + '>Pending</option>' +
+          '<option value="Valid"' + (status === 'Valid' ? ' selected' : '') + '>Valid</option>' +
+          '<option value="Invalid"' + (status === 'Invalid' ? ' selected' : '') + '>Invalid</option>' +
+        '</select>' +
+        '<input type="text" id="docsRemarks_' + idx + '" placeholder="Remarks (optional)" value="' + escapeHtml(item.remarks || "") + '">' +
+        '<button type="button" onclick="doReviewAttachment(' + idx + ', \'' + safeCrit + '\')">Save</button>' +
+      '</div>';
+    } else if (status === "Invalid") {
+      html += '<div class="docs-reupload-row">' +
+        '<input type="file" id="docsReuploadFile_' + idx + '" style="display:none;" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="doReuploadAttachment(' + idx + ', \'' + safeCrit + '\')">' +
+        '<button type="button" onclick="document.getElementById(\'docsReuploadFile_' + idx + '\').click()">⬆ Re-upload corrected file</button>' +
+      '</div>';
+    }
+
+    html += '</div>';
+  });
+
+  body.innerHTML = html;
+}
+
+function doReviewAttachment(idx, criteria) {
+  const status  = document.getElementById('docsStatus_' + idx).value;
+  const remarks = document.getElementById('docsRemarks_' + idx).value.trim();
+  callAppsScript('reviewAttachment', [session.token, docsModalSchoolId, criteria, status, remarks])
+    .then(function (res) {
+      if (!res.success) { alert(res.message); return; }
+      loadDocsModal();
+    })
+    .catch(function (err) { alert("Error: " + err.message); });
+}
+
+function doReuploadAttachment(idx, criteria) {
+  const fileInput = document.getElementById('docsReuploadFile_' + idx);
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const base64Content = e.target.result.split(",")[1];
+    callAppsScript('reuploadAttachment', [session.token, docsModalSchoolId, criteria, file.name, base64Content])
+      .then(function (res) {
+        if (!res.success) { alert(res.message); fileInput.value = ""; return; }
+        alert("Corrected file uploaded. It will be reviewed again.");
+        loadDocsModal();
+      })
+      .catch(function (err) { alert("Error: " + err.message); fileInput.value = ""; });
+  };
+  reader.readAsDataURL(file);
 }
 
 function doChangePassword() {
