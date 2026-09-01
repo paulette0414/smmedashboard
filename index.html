@@ -211,8 +211,9 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .records-scroll{ overflow-x:auto; }
 .badge{ padding:4px 12px; border-radius:14px; font-size:11.5px; font-weight:700; color:#fff; display:inline-block; letter-spacing:.2px; }
 .badge.Pending{ background:var(--warn); }
-.badge.Approved{ background:var(--ok); }
-.badge.Rejected{ background:var(--err); }
+.badge.EndorsedToRegion{ background:var(--ok); }
+.badge.OnGoingReview{ background:var(--deped-blue); }
+.badge.ForCompliance{ background:var(--err); }
 .badge.Other{ background:#64748b; }
 .records-empty{ padding:36px; text-align:center; color:#8b98b3; }
 
@@ -290,7 +291,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 
 /* ── Dashboard: scorecards ─────────────────────────────────────────────── */
 .stat-grid{
-  display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;
+  display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:20px;
 }
 .stat-card{
   background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px;
@@ -300,13 +301,15 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 }
 .stat-card:hover{ box-shadow:0 6px 18px rgba(6,38,92,0.12); transform:translateY(-2px); }
 .stat-card.pending{ border-top-color:var(--warn); }
-.stat-card.approved{ border-top-color:var(--ok); }
-.stat-card.rejected{ border-top-color:var(--err); }
+.stat-card.endorsed{ border-top-color:var(--ok); }
+.stat-card.ongoing{ border-top-color:var(--deped-blue); }
+.stat-card.compliance{ border-top-color:var(--err); }
 .stat-icon{ font-size:26px; }
 .stat-value{ font-size:32px; font-weight:800; color:var(--deped-blue); line-height:1; }
 .stat-card.pending .stat-value{ color:var(--warn); }
-.stat-card.approved .stat-value{ color:var(--ok); }
-.stat-card.rejected .stat-value{ color:var(--err); }
+.stat-card.endorsed .stat-value{ color:var(--ok); }
+.stat-card.ongoing .stat-value{ color:var(--deped-blue); }
+.stat-card.compliance .stat-value{ color:var(--err); }
 .stat-label{ font-size:12.5px; color:var(--muted); font-weight:600; }
 
 /* ── Dashboard: image carousel ─────────────────────────────────────────── */
@@ -584,15 +587,20 @@ table.records tbody tr:hover{ background:#f4f8ff; }
             <div class="stat-value" id="statPending">–</div>
             <div class="stat-label">Pending</div>
           </div>
-          <div class="stat-card approved">
-            <div class="stat-icon">✅</div>
-            <div class="stat-value" id="statApproved">–</div>
-            <div class="stat-label">Approved</div>
+          <div class="stat-card endorsed">
+            <div class="stat-icon">📨</div>
+            <div class="stat-value" id="statEndorsed">–</div>
+            <div class="stat-label">Endorsed to Region</div>
           </div>
-          <div class="stat-card rejected">
-            <div class="stat-icon">❌</div>
-            <div class="stat-value" id="statRejected">–</div>
-            <div class="stat-label">Rejected</div>
+          <div class="stat-card ongoing">
+            <div class="stat-icon">🔍</div>
+            <div class="stat-value" id="statOngoing">–</div>
+            <div class="stat-label">On-Going Review</div>
+          </div>
+          <div class="stat-card compliance">
+            <div class="stat-icon">📋</div>
+            <div class="stat-value" id="statCompliance">–</div>
+            <div class="stat-label">For Compliance</div>
           </div>
         </div>
 
@@ -1265,13 +1273,14 @@ function loadDashboard() {
 
   callAppsScript('getDashboardStats', [])
     .then(function (stats) {
-      document.getElementById('statTotal').textContent    = stats.total;
-      document.getElementById('statPending').textContent  = stats.pending;
-      document.getElementById('statApproved').textContent = stats.approved;
-      document.getElementById('statRejected').textContent = stats.rejected;
+      document.getElementById('statTotal').textContent      = stats.total;
+      document.getElementById('statPending').textContent    = stats.pending;
+      document.getElementById('statEndorsed').textContent   = stats.endorsedToRegion;
+      document.getElementById('statOngoing').textContent    = stats.onGoingReview;
+      document.getElementById('statCompliance').textContent = stats.forCompliance;
     })
     .catch(function () {
-      ['statTotal', 'statPending', 'statApproved', 'statRejected'].forEach(function (id) {
+      ['statTotal', 'statPending', 'statEndorsed', 'statOngoing', 'statCompliance'].forEach(function (id) {
         document.getElementById(id).textContent = "–";
       });
     });
@@ -1396,7 +1405,7 @@ function renderRecords() {
     '</tr></thead><tbody>';
 
   filtered.forEach(function (r) {
-    const statusClass = ["Pending", "Approved", "Rejected"].includes(r.status) ? r.status : "Other";
+    const statusClass = statusBadgeClass(r.status);
     const safeId = escapeHtml(r.schoolId).replace(/'/g, "\\'");
     html += '<tr>' +
       '<td>' + escapeHtml(r.applicationCode) + '</td>' +
@@ -1414,9 +1423,10 @@ function renderRecords() {
     if (canEvaluate) {
       html += '<td class="eval-cell">' +
         '<select id="evalDecision_' + safeId + '">' +
-          '<option value="Approved"' + (r.status === 'Approved' ? ' selected' : '') + '>Approved</option>' +
-          '<option value="Rejected"' + (r.status === 'Rejected' ? ' selected' : '') + '>Rejected</option>' +
           '<option value="Pending"' + (r.status === 'Pending' ? ' selected' : '') + '>Pending</option>' +
+          '<option value="Endorsed to Region"' + (r.status === 'Endorsed to Region' ? ' selected' : '') + '>Endorsed to Region</option>' +
+          '<option value="On-Going Review"' + (r.status === 'On-Going Review' ? ' selected' : '') + '>On-Going Review</option>' +
+          '<option value="For Compliance"' + (r.status === 'For Compliance' ? ' selected' : '') + '>For Compliance</option>' +
         '</select>' +
         '<button type="button" onclick="doEvaluate(\'' + safeId + '\')">Save</button>' +
       '</td>';
@@ -1763,6 +1773,19 @@ function escapeHtml(str) {
 
 function nl2br(str) {
   return escapeHtml(str).replace(/\n/g, "<br>");
+}
+
+// Maps an application Status value to a CSS-safe class name for the .badge
+// styles (badge classes can't contain the spaces that appear in labels like
+// "Endorsed to Region" or "On-Going Review").
+function statusBadgeClass(status) {
+  const map = {
+    "Pending": "Pending",
+    "Endorsed to Region": "EndorsedToRegion",
+    "On-Going Review": "OnGoingReview",
+    "For Compliance": "ForCompliance"
+  };
+  return map[status] || "Other";
 }
 </script>
 

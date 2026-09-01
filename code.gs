@@ -599,7 +599,7 @@ function getDashboardStats() {
   const sheet = ss.getSheetByName("SchoolData");
   const lastRow = sheet.getLastRow();
 
-  const stats = { total: 0, pending: 0, approved: 0, rejected: 0 };
+  const stats = { total: 0, pending: 0, endorsedToRegion: 0, onGoingReview: 0, forCompliance: 0 };
   if (lastRow < 2) return stats;
 
   const idCol     = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
@@ -609,8 +609,9 @@ function getDashboardStats() {
     if (idCol[i] === "" || idCol[i] === null || idCol[i] === undefined) continue;
     stats.total++;
     const status = (statusCol[i] || "Pending").toString().trim();
-    if (status === "Approved") stats.approved++;
-    else if (status === "Rejected") stats.rejected++;
+    if (status === "Endorsed to Region") stats.endorsedToRegion++;
+    else if (status === "On-Going Review") stats.onGoingReview++;
+    else if (status === "For Compliance") stats.forCompliance++;
     else stats.pending++;
   }
   return stats;
@@ -936,15 +937,17 @@ function changePassword(token, oldPassword, newPassword) {
   return { success: true, message: "Password changed successfully." };
 }
 
-// ── Evaluator/Admin-only: decide Approved/Rejected (or reset to Pending),
-// with an optional remarks note, logged in a new "Evaluation Remarks"
-// column (Q) so the original 16-column SchoolData layout is undisturbed.
+// ── Evaluator/Admin-only: decide Endorsed to Region / On-Going Review /
+// For Compliance (or reset to Pending), with an optional remarks note,
+// logged in a new "Evaluation Remarks" column (Q) so the original
+// 16-column SchoolData layout is undisturbed.
 function evaluateApplication(token, schoolId, decision, remarks) {
   const session = getSession_(token);
   if (!session || (session.role !== "Evaluator" && session.role !== "Admin")) {
     return { success: false, message: "Access denied." };
   }
-  if (decision !== "Approved" && decision !== "Rejected" && decision !== "Pending") {
+  if (decision !== "Endorsed to Region" && decision !== "On-Going Review" &&
+      decision !== "For Compliance" && decision !== "Pending") {
     return { success: false, message: "Invalid decision." };
   }
 
