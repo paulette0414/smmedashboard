@@ -460,6 +460,8 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .docs-modal-close{ width:auto; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); padding:6px 12px; font-size:12px; }
 .docs-modal-body{ padding:20px 24px; max-height:70vh; overflow-y:auto; }
 .docs-item{ border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+.docs-item-special{ background:#f8fafc; border-color:#cbd5e1; }
+.docs-item-file br + a{ display:inline-block; margin-top:3px; }
 .docs-item-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 .docs-item-crit{ font-weight:700; font-size:13.5px; color:var(--text); flex:1; min-width:200px; }
 .docs-item-file{ font-size:12px; margin-top:4px; }
@@ -1742,17 +1744,58 @@ function loadDocsModal() {
 // itself into an onclick string (criteria labels are long DepEd Order
 // paragraphs that can contain quotes/apostrophes/em dashes, which is fragile
 // to embed directly into inline HTML event handlers).
+// Endorsement Letter/Processing Sheet, Approved Documents, and Findings and
+// Recommendation are saved as a multi-line "N. fileName\n   Link: url" list
+// (see formatAttachmentList_ in code.gs) so more than one file can be on
+// record for the same slot. This parses that text back into a list of
+// {fileName, fileUrl} links to render. Older records saved before the
+// multi-file change may hold just a bare Drive URL — that's handled too.
+function parseAttachmentListText(text) {
+  text = (text || "").toString().trim();
+  if (!text) return [];
+  const items = [];
+  const lineRe = /^\s*\d+\.\s*(.+?)\s*\n\s*Link:\s*(\S+)\s*$/gm;
+  let m;
+  while ((m = lineRe.exec(text)) !== null) {
+    items.push({ fileName: m[1], fileUrl: m[2] });
+  }
+  if (items.length === 0 && /^https?:\/\//i.test(text)) {
+    items.push({ fileName: "View file", fileUrl: text });
+  }
+  return items;
+}
+
+function renderAttachmentGroup(label, icon, text) {
+  const files = parseAttachmentListText(text);
+  if (files.length === 0) return "";
+  const links = files.map(function (f) {
+    return '📎 <a href="' + escapeHtml(f.fileUrl) + '" target="_blank" rel="noopener">' + escapeHtml(f.fileName) + '</a>';
+  }).join('<br>');
+  return '<div class="docs-item docs-item-special">' +
+    '<div class="docs-item-top"><div class="docs-item-crit">' + icon + ' ' + escapeHtml(label) + '</div></div>' +
+    '<div class="docs-item-file">' + links + '</div>' +
+  '</div>';
+}
+
 function renderDocsModal() {
   const body = document.getElementById("docsModalBody");
   const canEvaluate = (session.role === "Admin" || session.role === "Evaluator" || session.role === "Reviewer");
   const items = docsModalItems;
+  const record = allRecords.find(function (r) { return (r.schoolId || "") === docsModalSchoolId; });
 
-  if (!items.length) {
+  let specialHtml = "";
+  if (record) {
+    specialHtml += renderAttachmentGroup("Endorsement Letter / Processing Sheet", "📨", record.endorsementLetterUrl);
+    specialHtml += renderAttachmentGroup("Approved Documents", "✅", record.approvedDocumentsUrl);
+    specialHtml += renderAttachmentGroup("Findings and Recommendation", "↩️", record.findingsRecommendationUrl);
+  }
+
+  if (!items.length && !specialHtml) {
     body.innerHTML = '<div class="docs-empty">No documents were attached to this application.</div>';
     return;
   }
 
-  let html = "";
+  let html = specialHtml;
   items.forEach(function (item, idx) {
     const status = item.status || "Pending";
     html += '<div class="docs-item">' +

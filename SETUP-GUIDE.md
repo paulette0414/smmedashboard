@@ -193,6 +193,10 @@ Katulad ng dati, kapag naka-attach na ang kinakailangang file sa isang applicati
 
 Mahalagang detalye: kapag pinili munang "For Approval" ang isang application, hindi ito nawawala sa listahan ng Reviewer — makikita pa rin nila ito (kasama ng mga bago pang "Endorsed to Region") para puwede pa rin nilang i-decide sa "Approved" o "Returned to Division" sa susunod. Pagkatapos ma-"Approved" o ma-"Returned to Division", saka lang ito aalis sa kanilang queue.
 
+**(B.1) Saan makikita ang mga in-attach na file (Endorsement Letter, Approved Documents, Findings and Recommendation)?** I-click ang "📄 Review" o "📄 View" button sa "Documents" column ng application sa Application Status — ito na yung parehong modal na ginagamit para tingnan ang per-criteria MOV attachments (Bahagi 6). Ngayon, kung may naka-attach na Endorsement Letter/Processing Sheet, Approved Documents, o Findings and Recommendation ang application, lalabas ang mga ito bilang hiwalay na section sa itaas ng listahan ng MOV — kada file ay clickable link papunta sa Google Drive. Makikita ito ng Admin, Evaluator, Reviewer, at ng may-ari (User) ng application.
+
+**Paano i-test ito:** Pagkatapos mag-attach ng file (endorsement letter, approved documents, o findings), i-click ang "📄 Review"/"📄 View" ng parehong application — dapat makita mo agad ang na-attach na file(s) bilang link sa itaas ng modal, bago pa yung listahan ng MOV.
+
 **(C) Bagong message ng Evaluator kapag "Endorsed to Region".** Pinalitan na ang dating "please attached endorsement letter" ng mas kumpletong **"Attach Endorsement Letter and accomplished Processing Sheet"** — at puwede nang mag-attach ng maraming file nang sabay (hal. parehong Endorsement Letter at Processing Sheet) sa iisang pag-click ng file picker, hindi na isa-isang file lang.
 
 **Paano i-test:**
