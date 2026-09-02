@@ -66,6 +66,8 @@ netlify.toml                        ← palitan ang luma
 
 **Kung manual/drag-and-drop:** palitan ang mga files sa folder mo sa computer, tapos i-drag ulit ang buong folder papunta sa Netlify deploy page (o `netlify deploy --prod` gamit ang Netlify CLI).
 
+**Simula Bahagi 16, may bago nang detalye dito:** ang `index.html` na ipinapadala ko ngayon ay ang **naka-obfuscate/minify na build** — ito pa rin ang i-deploy mo sa Netlify, walang pagbabago sa paraan ng pag-deploy. Basahin ang **Bahagi 17** para sa detalye.
+
 ## Bahagi 5 — Ano ang mangyayari sa Google Sheet mo
 
 Awtomatikong gagawa ang bagong code.gs ng **bagong tab** sa parehong Google Sheet mo, pangalang **"Users"** — dito nakatago ang mga account (username, naka-encrypt na password, role, buong pangalan, email, petsa, at status). Hindi mo na kailangang gawin ito manually — awtomatiko itong nabubuo sa unang beses na tatawagin ang alinmang login/register function.
@@ -255,3 +257,20 @@ Kung nasubukan mo na ang lahat ng ito at wala pa ring lumalabas, ipadala mo lang
 2. I-attach ang MOV ng lahat ng criteria isa-isa — dapat unti-unting nawawala ang mga pangalan sa babala, at maging enabled na ang SUBMIT pagka-kumpleto na.
 3. Bilang Evaluator, subukang i-set ang bagong application papuntang "Endorsed to Region" nang hindi pa nire-review ang mga MOV — dapat ma-block ito, may error tungkol sa "must be reviewed and marked Valid".
 4. Buksan ang "📄 Review" ng application, markahan Valid ang bawat MOV, tapos ulitin ang "Endorsed to Region" — dapat tuloy na ito (basta't may naka-attach na rin ang endorsement letter).
+
+## Bahagi 17 — Pag-secure ng code: obfuscation ng index.html, at ang totoo tungkol sa code.gs
+
+Tinanong mo kung puwedeng "i-secure" ang code para hindi ito ma-view ng mga user. Dalawa itong magkaibang usapin, at magkaiba rin ang totoong nangyayari sa bawat isa:
+
+**(A) Ang `code.gs` — server-side, at HINDI na kailangan pang gawan ng kahit ano.** Ito ang tumatakbo sa Apps Script server, hindi sa browser ng user. Walang paraan ang kahit sinong user na maka-"view source" nito — makikita lang ito ng taong may Edit/View access sa Apps Script project mismo sa Google Drive. Kaya ang totoong dapat mong siguraduhin dito ay: sino-sino ang may access (share settings) sa Apps Script project at sa Google Sheet mismo sa Drive — hindi ito bagay na puwede kong ayusin dito, dahil setting ito sa panig ng Google Drive/Workspace account mo.
+
+**(B) Ang `index.html` — client-side, kaya may limitasyon talaga.** Ito ang tumatakbo sa browser mismo ng user, kaya technically hindi ito puwedeng ganap na itago — ganito rin ang LAHAT ng website sa mundo (kahit ang mga bangko). Ang ginawa ko: (1) **in-obfuscate ko ang JavaScript** — pinaikli/pinalitan ang lahat ng pangalan ng variables sa mga hindi nababasang character, at ni-encode ang mga text/strings — para halos hindi na mabasa ng ordinaryong tao ang laman nito kahit buksan sa View Source; (2) **na-minify** din ang buong HTML/CSS (tinanggal ang extra spaces/comments); (3) **naka-disable ang right-click at ang mga common na DevTools shortcut** (F12, Ctrl+Shift+I, Ctrl+U, atbp.) — pero puwede pa ring mag-right-click PASTE sa loob mismo ng mga text field, para hindi maapektuhan ang normal na paggamit ng form.
+
+**Mahalaga, para malinaw ang expectations:** ito ay deterrent lang laban sa karaniwan/casual na pagtingin — hindi ito totoong "hindi na ma-crack" na proteksyon. Kung talagang determinado at may sapat na teknikal na kaalaman ang isang tao, may mga paraan pa rin silang ma-bypass ito (hal. sa pamamagitan ng browser menu sa halip na keyboard shortcut, o sa pag-disable muna ng JavaScript). Wala rin namang totoong "sikreto" (password, API key, credentials) na nakalagay sa loob ng index.html — ang mga iyon (Spreadsheet ID, Apps Script Web App URL, password hashing) ay nasa server-side na lahat (code.gs at ang `GAS_WEB_APP_URL` environment variable sa Netlify) at hindi kailanman ipinapadala sa browser.
+
+**Paano ito ni-deliver:** dalawang file na ngayon ang index.html —
+- **`index.source.html`** — ang readable/malinaw na bersyon. Dito ako gagawa ng lahat ng FUTURE na pagbabago kapag humiling ka pa ng bagong feature o ayos.
+- **`index.html`** — ang naka-obfuscate/minify na BUILD, gawa mula sa `index.source.html`. **Ito pa rin ang i-deploy mo sa Netlify** — walang pagbabago sa paraan ng pag-deploy mo (Bahagi 4), palitan mo lang ito ng file na parehong pangalan.
+- Kasama rin sa zip ang `build-tools/build-obfuscate.js` — ito ang script na gumagawa ng build mula sa source. Hindi mo na kailangang patakbuhin ito mismo — ako na ang bahalang mag-regenerate ng bagong obfuscated build sa tuwing may bagong hihilingin kang ayusin, at ipapadala ko rin palagi ang parehong `index.source.html` at `index.html` para may updated copy ka ng dalawa.
+
+**Paano i-test:** buksan ang deployed site, subukan mag-right-click sa labas ng anumang text field — dapat walang lumalabas na menu. Subukan pindutin ang F12 o Ctrl+Shift+I — dapat walang bumukas na DevTools panel. Subukan mag-right-click PASTE sa loob ng isang text field (hal. School ID) — dapat gumagana pa rin ito normal.

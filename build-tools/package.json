@@ -1,0 +1,13 @@
+{
+  "name": "project-dasig-build-tools",
+  "version": "1.0.0",
+  "description": "Internal build step: obfuscates and minifies index.source.html into the deployable index.html. You don't need to run this yourself — it's here for reference and so a future session has it available.",
+  "private": true,
+  "scripts": {
+    "build": "node build-obfuscate.js .."
+  },
+  "dependencies": {
+    "html-minifier-terser": "^7.2.0",
+    "javascript-obfuscator": "^5.6.0"
+  }
+}
