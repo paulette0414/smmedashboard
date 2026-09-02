@@ -1608,7 +1608,7 @@ function doEvaluate(schoolId) {
   const saveBtn = select.parentElement.querySelector('button');
 
   if (decision === "Endorsed to Region") {
-    const record = allRecords.find(function (r) { return (r.schoolId || "") === schoolId; });
+    const record = allRecords.find(function (r) { return String(r.schoolId || "") === String(schoolId); });
     const alreadyHasLetter = !!(record && record.endorsementLetterUrl);
     const fileInput = document.getElementById('endorseFile_' + schoolId);
 
@@ -1659,7 +1659,7 @@ function doReviewerDecide(schoolId) {
   const select = document.getElementById('reviewerDecision_' + schoolId);
   const decision = select.value;
   const saveBtn = select.parentElement.querySelector('button');
-  const record = allRecords.find(function (r) { return (r.schoolId || "") === schoolId; });
+  const record = allRecords.find(function (r) { return String(r.schoolId || "") === String(schoolId); });
   const fileInput = document.getElementById('reviewerFile_' + schoolId);
 
   if (decision === "Approved" || decision === "Returned to Division") {
@@ -1718,7 +1718,7 @@ let docsModalItems    = []; // the items currently shown in the modal — kept i
 
 function openDocsModal(schoolId) {
   docsModalSchoolId = schoolId;
-  const record = allRecords.find(function (r) { return (r.schoolId || "") === schoolId; });
+  const record = allRecords.find(function (r) { return String(r.schoolId || "") === String(schoolId); });
   document.getElementById("docsModalSub").textContent =
     (record ? (record.schoolName + " — " + record.applicationCode) : schoolId);
   document.getElementById("docsModalBody").innerHTML = '<div class="docs-empty">Loading…</div>';
@@ -1792,7 +1792,7 @@ function renderDocsModal() {
   const body = document.getElementById("docsModalBody");
   const canEvaluate = (session.role === "Admin" || session.role === "Evaluator" || session.role === "Reviewer");
   const items = docsModalItems;
-  const record = allRecords.find(function (r) { return (r.schoolId || "") === docsModalSchoolId; });
+  const record = allRecords.find(function (r) { return String(r.schoolId || "") === String(docsModalSchoolId); });
 
   let specialHtml = "";
   if (record) {

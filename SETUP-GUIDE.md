@@ -197,6 +197,18 @@ Mahalagang detalye: kapag pinili munang "For Approval" ang isang application, hi
 
 **Paano i-test ito:** Pagkatapos mag-attach ng file (endorsement letter, approved documents, o findings), i-click ang "📄 Review"/"📄 View" ng parehong application — dapat makita mo agad ang na-attach na file(s) bilang link sa itaas ng modal, bago pa yung listahan ng MOV.
 
+**(C) Bagong message ng Evaluator kapag "Endorsed to Region".** Pinalitan na ang dating "please attached endorsement letter" ng mas kumpletong **"Attach Endorsement Letter and accomplished Processing Sheet"** — at puwede nang mag-attach ng maraming file nang sabay (hal. parehong Endorsement Letter at Processing Sheet) sa iisang pag-click ng file picker, hindi na isa-isang file lang.
+
+**Paano i-test:**
+1. Pumili ng application type na "PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES..." sa Application Form — dapat may laman na ang Criteria & Required Documents table.
+2. Bilang Evaluator, i-set ang isang application papuntang "Endorsed to Region" nang walang naka-attach — dapat lumabas ang bagong message box na "Attach Endorsement Letter and accomplished Processing Sheet", at pagkatapos i-OK, dapat puwede kang pumili ng maraming file sa file picker.
+3. Bilang Reviewer, buksan ang isang "Endorsed to Region" na application — dapat tatlo na ang laman ng dropdown (For Approval / Returned to Division / Approved).
+4. Piliin ang "Approved" nang wala pang naka-attach na approved documents — dapat lumabas ang "Attach approved documents" bago ang file picker. Piliin ang "Returned to Division" sa ibang application nang wala pang findings — dapat lumabas ang "Attach findings and recommendation".
+5. Piliin muna ang "For Approval" sa isang application — tiyaking hindi ito nawawala sa listahan ng Reviewer, at puwede pa rin itong i-set later papuntang "Approved" o "Returned to Division".
+6. Tingnan ang Dashboard — dapat may dalawa nang bagong scorecard: "For Approval" at "Approved", bukod pa sa "Returned to Division" (pinalitan ang label mula "Returned by Region").
+
+Ang lahat ng ibang function (submission, dashboard stats para sa Admin/Evaluator, requirements ng ibang application types, atbp.) ay **hindi ginalaw**.
+
 ## Bahagi 14 — Cross-role viewing: makikita ng Evaluator ang in-attach ng Reviewer, at vice versa; hindi na nawawala ang decided applications sa listahan ng Reviewer
 
 Dati, sa sandaling ma-"Approved" o ma-"Returned to Division" ng Reviewer ang isang application, nawawala na ito agad sa kanilang "Application Status" table — kaya wala na silang paraan para balikan at tingnan pa ang sarili nilang naka-attach na Approved Documents o Findings and Recommendation, o maging ang Endorsement Letter/Processing Sheet na in-attach ng Evaluator noon.
@@ -211,14 +223,18 @@ Ngayon:
 3. Bumalik sa "Application Status" bilang Reviewer — dapat nandiyan pa rin ang application na iyon (may "Decided — see Documents" na sa halip na dropdown), at pag-click ng "📄 Review" ay makikita mo pareho ang Endorsement Letter AT ang Approved Documents.
 4. Mag-login bilang Evaluator o Admin, buksan ang parehong application sa Documents — dapat makita rin nila pareho ang Endorsement Letter at ang Approved Documents ng Reviewer (hindi lang yung sarili nilang in-attach).
 
-**(C) Bagong message ng Evaluator kapag "Endorsed to Region".** Pinalitan na ang dating "please attached endorsement letter" ng mas kumpletong **"Attach Endorsement Letter and accomplished Processing Sheet"** — at puwede nang mag-attach ng maraming file nang sabay (hal. parehong Endorsement Letter at Processing Sheet) sa iisang pag-click ng file picker, hindi na isa-isang file lang.
+## Bahagi 15 — Kung "wala pa ring makita" ang mga attachment kahit pagkatapos i-deploy
 
-**Paano i-test:**
-1. Pumili ng application type na "PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES..." sa Application Form — dapat may laman na ang Criteria & Required Documents table.
-2. Bilang Evaluator, i-set ang isang application papuntang "Endorsed to Region" nang walang naka-attach — dapat lumabas ang bagong message box na "Attach Endorsement Letter and accomplished Processing Sheet", at pagkatapos i-OK, dapat puwede kang pumili ng maraming file sa file picker.
-3. Bilang Reviewer, buksan ang isang "Endorsed to Region" na application — dapat tatlo na ang laman ng dropdown (For Approval / Returned to Division / Approved).
-4. Piliin ang "Approved" nang wala pang naka-attach na approved documents — dapat lumabas ang "Attach approved documents" bago ang file picker. Piliin ang "Returned to Division" sa ibang application nang wala pang findings — dapat lumabas ang "Attach findings and recommendation".
-5. Piliin muna ang "For Approval" sa isang application — tiyaking hindi ito nawawala sa listahan ng Reviewer, at puwede pa rin itong i-set later papuntang "Approved" o "Returned to Division".
-6. Tingnan ang Dashboard — dapat may dalawa nang bagong scorecard: "For Approval" at "Approved", bukod pa sa "Returned to Division" (pinalitan ang label mula "Returned by Region").
+**Ang #1 na dahilan nito: ang pag-Save lang ng code sa Apps Script editor ay HINDI awtomatikong nag-a-apply sa live Web App URL mo.** Kailangan mo talagang gumawa ng **bagong deployment version** para talagang gumana ang bagong code.gs sa totoong Web App, hindi lang sa editor. Sundin ito:
 
-Ang lahat ng ibang function (submission, dashboard stats para sa Admin/Evaluator, requirements ng ibang application types, atbp.) ay **hindi ginalaw**.
+1. Sa Apps Script editor, i-click ang **Deploy** (kanang-itaas) → **Manage deployments**.
+2. Hanapin ang existing Web App deployment mo (yung parehong URL na tinutukoy ng `GAS_WEB_APP_URL` sa Netlify), i-click ang **✏️ (pencil/edit icon)** dito.
+3. Sa "Version" dropdown, piliin ang **"New version"** — huwag lang "Save" (Ctrl+S) sa editor mismo, kailangan talaga itong hakbang na ito para talagang mag-apply ang mga bagong function.
+4. I-click ang **Deploy**.
+5. Kung nagbago ang deployment URL (bihira, pero puwede), i-check at i-update ang `GAS_WEB_APP_URL` sa Netlify environment variables (Bahagi 3), tapos i-trigger ang bagong Netlify deploy.
+
+**Paano malalaman kung ito nga ang dahilan:** buksan mo ang totoong Google Sheet mo (yung "SchoolData" sheet), hanapin ang row ng application na sinusubukan mo, at tingnan ang column **S** (Endorsement Letter / Processing Sheet), **T** (Approved Documents), at **U** (Findings and Recommendation):
+- Kung **blangko** ang kaukulang column kahit nag-attach ka na ng file gamit ang app, ibig sabihin hindi pa naka-apply ang bagong `evaluateApplication`/`reviewerDecide` sa totoong deployed Apps Script — sundin ang mga hakbang sa itaas.
+- Kung **may laman** ang column (may format na "1. filename" tapos "Link: url" sa susunod na linya), ibig sabihin naka-save na nang tama sa Sheet — ibig sabihin sa frontend side na ang dapat pang tingnan; sabihin mo lang sa akin at may isa pa akong isyu na na-ayos na (`schoolId` type-matching sa pagitan ng Sheet data at ng button click) na kasama na sa pinakabagong index.html na ipinadala.
+
+Kung nasubukan mo na ang lahat ng ito at wala pa ring lumalabas, ipadala mo lang sa akin: (a) anong role ang naka-login, (b) yung School ID ng application na sinusubukan mo, at (c) kung may laman ba talaga ang column S/T/U ng row na iyon sa Sheet — para masasabi ko kung saan talaga nangyayari ang problema.
