@@ -154,7 +154,7 @@ May pulang bilang na lalabas sa ibabaw ng 🔔 button kung may unread na notific
 | `logoutAccount` | Naka-login | Inaalis ang session |
 | `getMySession` | Naka-login | Ibinabalik ang role/pangalan/email, para hindi mawala ang session pag nag-refresh ng page |
 | `changePassword` | Naka-login | Palitan ang sariling password |
-| `getMySubmissions` | Naka-login | User: sariling submissions lang. Admin/Evaluator: lahat. Reviewer: yung mga "Endorsed to Region" o "For Approval" lang (tingnan Bahagi 13) |
+| `getMySubmissions` | Naka-login | User: sariling submissions lang. Admin/Evaluator: lahat. Reviewer: yung mga "Endorsed to Region"/"For Approval" (puwede pang i-decide) PATI na yung mga "Approved"/"Returned to Division" na (decided na, read-only na lang — tingnan Bahagi 14) |
 | `listUsers` / `setUserStatus` | Admin lang | Tingnan/i-approve/i-disable ang mga account |
 | `createAdminAccount` | Admin lang | Gumawa ng dagdag na Admin account |
 | `evaluateApplication` | Evaluator/Admin lang | Mag-decide (Pending/Endorsed to Region/On-Going Review/For Compliance) + remarks sa BUONG application. Kailangan ng isa o higit pang attachment (`attachmentFiles`, array na ngayon — tingnan Bahagi 13) bago tanggapin ang "Endorsed to Region" kung wala pa itong naka-attach na file |
@@ -196,6 +196,20 @@ Mahalagang detalye: kapag pinili munang "For Approval" ang isang application, hi
 **(B.1) Saan makikita ang mga in-attach na file (Endorsement Letter, Approved Documents, Findings and Recommendation)?** I-click ang "📄 Review" o "📄 View" button sa "Documents" column ng application sa Application Status — ito na yung parehong modal na ginagamit para tingnan ang per-criteria MOV attachments (Bahagi 6). Ngayon, kung may naka-attach na Endorsement Letter/Processing Sheet, Approved Documents, o Findings and Recommendation ang application, lalabas ang mga ito bilang hiwalay na section sa itaas ng listahan ng MOV — kada file ay clickable link papunta sa Google Drive. Makikita ito ng Admin, Evaluator, Reviewer, at ng may-ari (User) ng application.
 
 **Paano i-test ito:** Pagkatapos mag-attach ng file (endorsement letter, approved documents, o findings), i-click ang "📄 Review"/"📄 View" ng parehong application — dapat makita mo agad ang na-attach na file(s) bilang link sa itaas ng modal, bago pa yung listahan ng MOV.
+
+## Bahagi 14 — Cross-role viewing: makikita ng Evaluator ang in-attach ng Reviewer, at vice versa; hindi na nawawala ang decided applications sa listahan ng Reviewer
+
+Dati, sa sandaling ma-"Approved" o ma-"Returned to Division" ng Reviewer ang isang application, nawawala na ito agad sa kanilang "Application Status" table — kaya wala na silang paraan para balikan at tingnan pa ang sarili nilang naka-attach na Approved Documents o Findings and Recommendation, o maging ang Endorsement Letter/Processing Sheet na in-attach ng Evaluator noon.
+
+Ngayon:
+- **Nananatili ang decided applications sa listahan ng Reviewer** — kahit "Approved" o "Returned to Division" na ito, makikita pa rin ito sa kanilang "Application Status" table (bagama't hindi na nila puwedeng baguhin pa ang desisyon dito). Sa halip na dropdown at Save button, may makikita na lang silang "*Decided — see Documents*" sa "Region Action" column — pero gumagana pa rin ang "📄 Review" button para tingnan ang mga attachment.
+- **Makikita ng Evaluator/Admin ang lahat ng in-attach ng Reviewer, at makikita ng Reviewer ang in-attach ng Evaluator, sa parehong application** — sa sandaling buksan ang "📄 Review"/"📄 View" ng isang application, makikita doon nang magkasama ang Endorsement Letter/Processing Sheet (in-attach ng Evaluator), Approved Documents at/o Findings and Recommendation (in-attach ng Reviewer) — kung sino man ang naka-login (Admin, Evaluator, Reviewer, o ang may-ari na User), pareho ang makikita nila hangga't may laman ang kaukulang column sa Sheet.
+
+**Paano i-test:**
+1. Bilang Evaluator, i-endorse ang isang application papuntang Region (may naka-attach na endorsement letter).
+2. Bilang Reviewer, i-"Approve" ang parehong application (may naka-attach na approved documents).
+3. Bumalik sa "Application Status" bilang Reviewer — dapat nandiyan pa rin ang application na iyon (may "Decided — see Documents" na sa halip na dropdown), at pag-click ng "📄 Review" ay makikita mo pareho ang Endorsement Letter AT ang Approved Documents.
+4. Mag-login bilang Evaluator o Admin, buksan ang parehong application sa Documents — dapat makita rin nila pareho ang Endorsement Letter at ang Approved Documents ng Reviewer (hindi lang yung sarili nilang in-attach).
 
 **(C) Bagong message ng Evaluator kapag "Endorsed to Region".** Pinalitan na ang dating "please attached endorsement letter" ng mas kumpletong **"Attach Endorsement Letter and accomplished Processing Sheet"** — at puwede nang mag-attach ng maraming file nang sabay (hal. parehong Endorsement Letter at Processing Sheet) sa iisang pag-click ng file picker, hindi na isa-isang file lang.
 

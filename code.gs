@@ -615,6 +615,16 @@ function extractPreviewUrl(driveUrl) {
   return "https://drive.google.com/file/d/" + match[1] + "/preview";
 }
 
+// Every status a Reviewer should ever see on their desk: the two they can
+// still act on (see REVIEWER_DECIDABLE_STATUSES_ below) plus the three
+// terminal outcomes of a decision they've already made. Shared by
+// getDashboardStats() (their scorecard scope) and getMySubmissions() (their
+// Application Status table) so a decided application doesn't just vanish —
+// the Reviewer (and anyone viewing the same record) can still open its
+// Documents modal and see every attachment on it (see Bahagi 13/14 in
+// SETUP-GUIDE.md).
+var REVIEWER_VISIBLE_STATUSES_ = ["Endorsed to Region", "For Approval", "Returned to Division", "Returned by Region", "Approved"];
+
 // ── getDashboardStats ──────────────────────────────────────────────────────────
 // Returns submission counts for the Dashboard scorecards.
 // Dashboard scope depends on who is asking: Admin/Evaluator see the whole
@@ -647,7 +657,6 @@ function getDashboardStats(token) {
   const isReviewer = session && session.role === "Reviewer";
   const emailCol   = isUser ? sheet.getRange(2, 12, lastRow - 1, 1).getValues().flat() : null;
   const myEmail    = isUser ? (session.email || "").toString().trim().toLowerCase() : "";
-  const REVIEWER_RELEVANT_STATUSES = ["Endorsed to Region", "For Approval", "Returned to Division", "Returned by Region", "Approved"];
 
   for (let i = 0; i < idCol.length; i++) {
     if (idCol[i] === "" || idCol[i] === null || idCol[i] === undefined) continue;
@@ -657,7 +666,7 @@ function getDashboardStats(token) {
       const rowEmail = (emailCol[i] || "").toString().trim().toLowerCase();
       if (!myEmail || rowEmail !== myEmail) continue;
     } else if (isReviewer) {
-      if (REVIEWER_RELEVANT_STATUSES.indexOf(status) === -1) continue;
+      if (REVIEWER_VISIBLE_STATUSES_.indexOf(status) === -1) continue;
     }
     // Admin/Evaluator (or no/invalid session): unfiltered, division-wide.
 
@@ -880,11 +889,16 @@ function getMySubmissions(token) {
     return { success: true, submissions: all };
   }
   if (session.role === "Reviewer") {
-    // Reviewer's queue: applications they can still act on (see
-    // REVIEWER_DECIDABLE_STATUSES_ / reviewerDecide()) — includes "For
-    // Approval" so an application they queued for approval doesn't vanish
-    // from their table before they mark it Approved/Returned to Division.
-    return { success: true, submissions: all.filter(function (r) { return REVIEWER_DECIDABLE_STATUSES_.indexOf(r.status) !== -1; }) };
+    // Reviewer's table: everything that has ever reached their desk (see
+    // REVIEWER_VISIBLE_STATUSES_) — both what they can still act on
+    // ("Endorsed to Region"/"For Approval", see REVIEWER_DECIDABLE_STATUSES_
+    // and reviewerDecide()) and what they've already decided on ("Approved"/
+    // "Returned to Division"). Once decided, the row becomes read-only on
+    // the frontend (no more decision dropdown), but stays visible so the
+    // Reviewer — and anyone else looking at the same application, e.g. the
+    // Evaluator — can still open its Documents modal and see every
+    // attachment on it, both theirs and the other role's.
+    return { success: true, submissions: all.filter(function (r) { return REVIEWER_VISIBLE_STATUSES_.indexOf(r.status) !== -1; }) };
   }
 
   const usersSheet = getUsersSheet_();

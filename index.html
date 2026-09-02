@@ -1558,15 +1558,26 @@ function renderRecords() {
       '</td>';
     }
     if (isReviewer) {
-      html += '<td class="eval-cell">' +
-        '<select id="reviewerDecision_' + safeId + '">' +
-          '<option value="For Approval"' + (r.status === 'For Approval' ? ' selected' : '') + '>For Approval</option>' +
-          '<option value="Returned to Division"' + (r.status === 'Returned to Division' || r.status === 'Returned by Region' ? ' selected' : '') + '>Returned to Division</option>' +
-          '<option value="Approved"' + (r.status === 'Approved' ? ' selected' : '') + '>Approved</option>' +
-        '</select>' +
-        '<button type="button" onclick="doReviewerDecide(\'' + safeId + '\')">Save</button>' +
-        '<input type="file" id="reviewerFile_' + safeId + '" multiple style="display:none;">' +
-      '</td>';
+      // Once a Reviewer has decided (Approved / Returned to Division), the
+      // row is read-only — matches the backend's REVIEWER_DECIDABLE_STATUSES_
+      // gate in reviewerDecide(), which only accepts a new decision while an
+      // application is still "Endorsed to Region" or "For Approval". The row
+      // stays in their table either way (see getMySubmissions() in code.gs)
+      // so they can still open Documents and see every attachment on it.
+      const reviewerCanDecide = (r.status === 'Endorsed to Region' || r.status === 'For Approval');
+      if (reviewerCanDecide) {
+        html += '<td class="eval-cell">' +
+          '<select id="reviewerDecision_' + safeId + '">' +
+            '<option value="For Approval"' + (r.status === 'For Approval' ? ' selected' : '') + '>For Approval</option>' +
+            '<option value="Returned to Division"' + (r.status === 'Returned to Division' || r.status === 'Returned by Region' ? ' selected' : '') + '>Returned to Division</option>' +
+            '<option value="Approved"' + (r.status === 'Approved' ? ' selected' : '') + '>Approved</option>' +
+          '</select>' +
+          '<button type="button" onclick="doReviewerDecide(\'' + safeId + '\')">Save</button>' +
+          '<input type="file" id="reviewerFile_' + safeId + '" multiple style="display:none;">' +
+        '</td>';
+      } else {
+        html += '<td class="eval-cell"><em style="color:var(--muted); font-size:12px;">Decided — see Documents</em></td>';
+      }
     }
     html += '</tr>';
   });
