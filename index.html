@@ -351,36 +351,6 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .stat-card.returned .stat-value{ color:#7c3aed; }
 .stat-label{ font-size:12.5px; color:var(--muted); font-weight:600; }
 
-/* ── Dashboard: image carousel ─────────────────────────────────────────── */
-.carousel{ position:relative; border-radius:10px; overflow:hidden; background:#eef3f9; }
-.carousel-track{
-  display:flex; transition:transform .4s ease; height:380px;
-}
-.carousel-track img{
-  width:100%; flex-shrink:0; height:380px; object-fit:cover; display:block; background:#dfe7f4;
-}
-.carousel-empty{
-  width:100%; display:flex; align-items:center; justify-content:center;
-  color:#8b98b3; font-size:14px; height:380px;
-}
-.carousel-nav{
-  position:absolute; top:50%; transform:translateY(-50%); background:rgba(6,38,92,0.55);
-  color:#fff; border:none; width:40px; height:40px; border-radius:50%; font-size:22px;
-  cursor:pointer; display:flex; align-items:center; justify-content:center;
-  box-shadow:0 2px 8px rgba(0,0,0,0.2); transition:background .15s ease;
-}
-.carousel-nav:hover{ background:rgba(6,38,92,0.85); }
-.carousel-nav.prev{ left:14px; }
-.carousel-nav.next{ right:14px; }
-.carousel-dots{
-  position:absolute; bottom:14px; left:0; right:0; display:flex; justify-content:center; gap:8px;
-}
-.carousel-dot{
-  width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,0.55); cursor:pointer;
-  border:1px solid rgba(6,38,92,0.25); transition:background .15s ease, transform .15s ease;
-}
-.carousel-dot.active{ background:#fff; transform:scale(1.2); }
-
 /* ── Dashboard: introduction text ──────────────────────────────────────── */
 .intro-content{ padding:20px; line-height:1.75; color:var(--text); font-size:14px; }
 .intro-content p{ margin:0 0 16px 0; }
@@ -426,6 +396,25 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 #authMessage.err{ color:var(--err); font-weight:700; }
 #authMessage.ok{ color:var(--ok); font-weight:700; }
 .auth-hint{ font-size:11.5px; color:var(--muted); margin-top:10px; text-align:center; }
+
+/* ── Info popup modal (new) — used for the registration confirmation, and
+   any other place a brief message needs to be impossible to miss. ─────── */
+#infoModalOverlay{
+  position:fixed; inset:0; z-index:1300; background:rgba(6,38,92,0.55);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+#infoModalOverlay[hidden]{ display:none; }
+.info-modal{
+  width:100%; max-width:400px; background:#fff; border-radius:14px; overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,0.4); text-align:center;
+}
+.info-modal-icon{ font-size:36px; margin:26px 0 4px 0; }
+.info-modal.err .info-modal-icon{ color:var(--err); }
+.info-modal.ok .info-modal-icon{ color:var(--ok); }
+.info-modal h3{ margin:0; padding:0 24px; font-size:16px; color:var(--deped-blue); }
+.info-modal p{ margin:10px 0 0 0; padding:0 24px; font-size:13.5px; color:var(--text); line-height:1.5; }
+.info-modal-footer{ padding:20px 24px 24px 24px; }
+.info-modal-footer button{ width:100%; background:linear-gradient(135deg,var(--deped-navy),var(--deped-blue)); }
 
 /* ── Document review modal (new) ──────────────────────────────────────── */
 #docsOverlay{
@@ -475,7 +464,6 @@ table.records tbody tr:hover{ background:#f4f8ff; }
   .field{ grid-template-columns:120px 1fr; }
   .bottom-bar{ grid-template-columns:1fr; }
   .stat-grid{ grid-template-columns:1fr 1fr; }
-  .carousel-track, .carousel-track img, .carousel-empty{ height:220px; }
 }
 </style>
 </head>
@@ -536,6 +524,18 @@ table.records tbody tr:hover{ background:#f4f8ff; }
         <div class="auth-hint">Evaluator accounts need Admin approval before you can log in. Applicant/School accounts can log in right away.</div>
       </form>
       <div id="authMessage"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ INFO POPUP MODAL (new) ══════════════════════════ -->
+<div id="infoModalOverlay" hidden onclick="if(event.target===this) closeInfoModal();">
+  <div class="info-modal" id="infoModalBox">
+    <div class="info-modal-icon" id="infoModalIcon">✅</div>
+    <h3 id="infoModalTitle">Title</h3>
+    <p id="infoModalMessage">Message</p>
+    <div class="info-modal-footer">
+      <button type="button" onclick="closeInfoModal()">OK</button>
     </div>
   </div>
 </div>
@@ -660,20 +660,6 @@ table.records tbody tr:hover{ background:#f4f8ff; }
             <div class="stat-icon">↩️</div>
             <div class="stat-value" id="statReturned">–</div>
             <div class="stat-label">Returned by Region</div>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">🖼️ Gallery</div>
-          <div style="padding:20px;">
-            <div class="carousel" id="carousel">
-              <div class="carousel-track" id="carouselTrack">
-                <div class="carousel-empty" id="carouselEmpty">Loading images…</div>
-              </div>
-              <button type="button" class="carousel-nav prev" id="carouselPrev" onclick="carouselMove(-1)" style="display:none;">‹</button>
-              <button type="button" class="carousel-nav next" id="carouselNext" onclick="carouselMove(1)" style="display:none;">›</button>
-              <div class="carousel-dots" id="carouselDots"></div>
-            </div>
           </div>
         </div>
 
@@ -839,6 +825,21 @@ function setAuthMessage(msg, cls) {
   el.className = cls || "";
 }
 
+// Popup version of the same feedback, for moments (like registration) that
+// need to be impossible to miss rather than a small line of text below the
+// form.
+function showInfoModal(title, message, kind) {
+  document.getElementById('infoModalTitle').textContent = title;
+  document.getElementById('infoModalMessage').textContent = message;
+  document.getElementById('infoModalBox').className = 'info-modal' + (kind ? ' ' + kind : '');
+  document.getElementById('infoModalIcon').textContent = kind === 'err' ? '⚠️' : '✅';
+  document.getElementById('infoModalOverlay').hidden = false;
+}
+
+function closeInfoModal() {
+  document.getElementById('infoModalOverlay').hidden = true;
+}
+
 function doLogin() {
   const username = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value;
@@ -864,16 +865,21 @@ function doRegister() {
   setAuthMessage("Creating account…", "");
   callAppsScript("registerAccount", [data])
     .then(function (res) {
-      if (!res.success) { setAuthMessage(res.message, "err"); return; }
-      setAuthMessage(res.message, "ok");
+      setAuthMessage("", "");
+      if (!res.success) { showInfoModal("Registration Failed", res.message, "err"); return; }
       if (res.status === "Active") {
         document.getElementById("loginUsername").value = data.username;
         document.getElementById("loginPassword").value = "";
         switchAuthTab("login");
-        setAuthMessage("Account created. You may now log in.", "ok");
+        showInfoModal("Account Created", "Your account has been created. You may now log in.", "ok");
+      } else {
+        showInfoModal("Account Created", res.message, "ok");
       }
     })
-    .catch(function (err) { setAuthMessage("Error: " + err.message, "err"); });
+    .catch(function (err) {
+      setAuthMessage("", "");
+      showInfoModal("Error", err.message, "err");
+    });
 }
 
 function doLogout() {
@@ -904,7 +910,7 @@ function enterApp() {
   notificationPollTimer = setInterval(loadNotifications, 45000);
 
   if (!appInitialized) { appInitialized = true; initApp(); }
-  else { dashboardLoaded = false; loadDashboard(); }
+  else { loadDashboard(); }
 }
 
 let appInitialized = false;
@@ -1396,14 +1402,22 @@ function showError(err) {
   setMessage("Error: " + err.message, "#dc2626");
 }
 
-/* ── Dashboard: stats + image carousel ──────────────────────────────────── */
-let dashboardLoaded = false;
+/* ── Dashboard: stats ────────────────────────────────────────────────────
+   Re-fetched every time the Dashboard tab is opened (no stale-content
+   caching) — the stat cards are set to "…" right away so it's obvious a
+   refresh is in progress rather than leaving the previous numbers sitting
+   there looking current. The old image-gallery carousel that used to load
+   here was removed — it scanned an entire Drive folder and re-shared every
+   file on every single load, which was the main source of dashboard
+   slowness. */
+const DASHBOARD_STAT_IDS = ['statTotal', 'statPending', 'statEndorsed', 'statOngoing', 'statCompliance', 'statReturned'];
 
 function loadDashboard() {
-  if (dashboardLoaded) return;
-  dashboardLoaded = true;
+  DASHBOARD_STAT_IDS.forEach(function (id) {
+    document.getElementById(id).textContent = "…";
+  });
 
-  callAppsScript('getDashboardStats', [])
+  callAppsScript('getDashboardStats', [session.token])
     .then(function (stats) {
       document.getElementById('statTotal').textContent      = stats.total;
       document.getElementById('statPending').textContent    = stats.pending;
@@ -1413,85 +1427,10 @@ function loadDashboard() {
       document.getElementById('statReturned').textContent   = stats.returnedByRegion;
     })
     .catch(function () {
-      ['statTotal', 'statPending', 'statEndorsed', 'statOngoing', 'statCompliance', 'statReturned'].forEach(function (id) {
+      DASHBOARD_STAT_IDS.forEach(function (id) {
         document.getElementById(id).textContent = "–";
       });
     });
-
-  callAppsScript('getDashboardImages', [])
-    .then(function (res) {
-      if (res && res.success) {
-        initCarousel(res.images || []);
-      } else {
-        document.getElementById('carouselEmpty').textContent =
-          (res && res.message) || "Unable to load images.";
-      }
-    })
-    .catch(function (err) {
-      document.getElementById('carouselEmpty').textContent = "Unable to load images: " + err.message;
-    });
-}
-
-let carouselImages = [];
-let carouselIndex  = 0;
-let carouselTimer  = null;
-
-function initCarousel(images) {
-  carouselImages = images || [];
-  const track = document.getElementById('carouselTrack');
-  const dots  = document.getElementById('carouselDots');
-  const prev  = document.getElementById('carouselPrev');
-  const next  = document.getElementById('carouselNext');
-
-  if (carouselImages.length === 0) {
-    track.innerHTML = '<div class="carousel-empty" id="carouselEmpty">No images yet. Add images to the "Dashboard Carousel Images" folder in Drive to display them here.</div>';
-    prev.style.display = 'none';
-    next.style.display = 'none';
-    dots.innerHTML = '';
-    return;
-  }
-
-  track.innerHTML = carouselImages.map(function (img) {
-    return '<img src="' + img.url + '" alt="' + escapeHtml(img.name || '') + '">';
-  }).join('');
-
-  dots.innerHTML = carouselImages.map(function (_, i) {
-    return '<span class="carousel-dot' + (i === 0 ? ' active' : '') + '" onclick="carouselGoTo(' + i + ')"></span>';
-  }).join('');
-
-  prev.style.display = carouselImages.length > 1 ? 'flex' : 'none';
-  next.style.display = carouselImages.length > 1 ? 'flex' : 'none';
-
-  carouselIndex = 0;
-  updateCarouselPosition();
-
-  if (carouselImages.length > 1) {
-    if (carouselTimer) clearInterval(carouselTimer);
-    carouselTimer = setInterval(function () { carouselMove(1); }, 5000);
-  }
-}
-
-function carouselMove(delta) {
-  if (carouselImages.length === 0) return;
-  carouselIndex = (carouselIndex + delta + carouselImages.length) % carouselImages.length;
-  updateCarouselPosition();
-}
-
-function carouselGoTo(i) {
-  carouselIndex = i;
-  updateCarouselPosition();
-  if (carouselTimer) clearInterval(carouselTimer);
-  if (carouselImages.length > 1) {
-    carouselTimer = setInterval(function () { carouselMove(1); }, 5000);
-  }
-}
-
-function updateCarouselPosition() {
-  const track = document.getElementById('carouselTrack');
-  track.style.transform = 'translateX(-' + (carouselIndex * 100) + '%)';
-  document.querySelectorAll('.carousel-dot').forEach(function (dot, i) {
-    dot.classList.toggle('active', i === carouselIndex);
-  });
 }
 
 /* ── Status / Records tab ───────────────────────────────────────────────── */

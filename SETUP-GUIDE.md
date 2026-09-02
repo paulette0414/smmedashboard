@@ -165,4 +165,14 @@ May pulang bilang na lalabas sa ibabaw ng 🔔 button kung may unread na notific
 | `getMyNotifications` | Naka-login | Ibinabalik ang mga in-app notification na para sa naka-login (base sa username o role) |
 | `markNotificationRead` / `markAllNotificationsRead` | Naka-login | Markahan bilang "read" ang isa o lahat ng sariling notifications |
 
+## Bahagi 11 — Mga follow-up na ayos (dashboard scope, English notifications, tinanggal na Gallery, register popup)
+
+- **Dashboard base sa role.** Dati, iisang set ng numero lang ang lumalabas sa Dashboard scorecards kahit sino ang naka-login. Ngayon: **User** — makikita lang nila ang bilang ng sarili nilang mga application; **Reviewer (Region)** — makikita lang nila ang bilang ng mga application na nasa kanilang "Endorsed to Region" queue; **Admin at Evaluator** — pareho pa rin, makikita nila ang buong bilang ng lahat ng application (walang pagbabago dito).
+- **Notifications sa English na.** Yung mga mensahe ng in-app notification (hal. "The status of your application ... has been updated to: ...", "Region returned the application ...") ay nasa English na ngayon, hindi na Taglish.
+- **Naayos ang "naiiwan pang lumang datos" sa Dashboard.** Dati, kapag lumipat ka papunta sa ibang tab at bumalik sa Dashboard, hindi na ito nag-a-update — nananatili yung mga LUMANG bilang. Ngayon, kada balik mo sa Dashboard tab, awtomatiko itong kumukuha ng bagong datos mula sa Google Sheet.
+- **Tinanggal ang Gallery/image carousel.** Ito pala ang pangunahing dahilan kung bakit mabagal ang buong app — kada pag-load ng Dashboard, sine-scan nito ang BUONG "Dashboard Carousel Images" folder sa Drive at nire-reshare ang bawat file dito, isa-isa. Tinanggal na ito nang tuluyan (sa code.gs at index.html) — mas mabilis na dapat mag-load ang Dashboard ngayon. Kung gusto mo pa rin ng ganitong gallery sa hinaharap, sabihin mo lang para gawan natin ng mas mabilis na paraan.
+- **May pop-up na ngayon pag nag-register.** Dati, isang maliit na text lang sa ilalim ng form ang lumalabas pagkatapos mag-register — madaling hindi mapansin. Ngayon, may lalabas na malinaw na message box/pop-up (may "OK" button) — parehong ginagamit ito kung matagumpay ang pag-register (User: puwede nang mag-login; Evaluator/Reviewer: Pending pa, hihintayin ang Admin approval) at kung may error (hal. taken na ang username).
+
+**Paano i-test:** Mag-login bilang User at Reviewer (hiwalay na test accounts), tingnan kung tama ang bilang sa Dashboard nila (dapat mas kaunti/naka-filter kumpara sa Admin). Mag-lipat-lipat ng tabs papunta't pabalik sa Dashboard at tingnan kung nag-a-update ang mga numero. Mag-register ng bagong test account at tiyaking may lumalabas na pop-up.
+
 Ang lahat ng ibang function (submission, dashboard stats, file upload, requirements, atbp.) ay **hindi ginalaw** — eksakto pa rin ito sa orihinal mong code.gs.

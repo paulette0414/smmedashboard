@@ -39,7 +39,6 @@ const API_WHITELIST = {
   getSettingsData: getSettingsData,
   getAllSubmissions: getAllSubmissions,
   getDashboardStats: getDashboardStats,
-  getDashboardImages: getDashboardImages,
   getApplicationRequirements: getApplicationRequirements,
   reserveApplicationCode: reserveApplicationCode,
   searchSchoolById: searchSchoolById,
@@ -609,7 +608,15 @@ function extractPreviewUrl(driveUrl) {
 
 // ── getDashboardStats ──────────────────────────────────────────────────────────
 // Returns submission counts for the Dashboard scorecards.
-function getDashboardStats() {
+// Dashboard scope depends on who is asking: Admin/Evaluator see the whole
+// division-wide picture (unchanged); a User only sees counts for their own
+// submissions (matched by the email on their account, same rule as
+// getMySubmissions()); a Reviewer only sees counts for applications
+// currently in their own "Endorsed to Region" queue (same filter as their
+// getMySubmissions()) — they never worked the other statuses, so those stay
+// at zero for them rather than showing the whole division's numbers.
+function getDashboardStats(token) {
+  const session = getSession_(token);
   const ss    = SpreadsheetApp.openById("1Yc-DDDU8muIS5HR0OWoLclUnK6RGPrcVe_ydYlgWOYI");
   const sheet = ss.getSheetByName("SchoolData");
   const lastRow = sheet.getLastRow();
@@ -620,10 +627,24 @@ function getDashboardStats() {
   const idCol     = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
   const statusCol = sheet.getRange(2, 14, lastRow - 1, 1).getValues().flat();
 
+  const isUser     = session && session.role === "User";
+  const isReviewer = session && session.role === "Reviewer";
+  const emailCol   = isUser ? sheet.getRange(2, 12, lastRow - 1, 1).getValues().flat() : null;
+  const myEmail    = isUser ? (session.email || "").toString().trim().toLowerCase() : "";
+
   for (let i = 0; i < idCol.length; i++) {
     if (idCol[i] === "" || idCol[i] === null || idCol[i] === undefined) continue;
-    stats.total++;
     const status = (statusCol[i] || "Pending").toString().trim();
+
+    if (isUser) {
+      const rowEmail = (emailCol[i] || "").toString().trim().toLowerCase();
+      if (!myEmail || rowEmail !== myEmail) continue;
+    } else if (isReviewer) {
+      if (status !== "Endorsed to Region") continue;
+    }
+    // Admin/Evaluator (or no/invalid session): unfiltered, division-wide.
+
+    stats.total++;
     if (status === "Endorsed to Region") stats.endorsedToRegion++;
     else if (status === "On-Going Review") stats.onGoingReview++;
     else if (status === "For Compliance") stats.forCompliance++;
@@ -633,39 +654,10 @@ function getDashboardStats() {
   return stats;
 }
 
-// ── getDashboardImages ─────────────────────────────────────────────────────────
-// Returns image URLs from the "Dashboard Carousel Images" Drive folder (auto-
-// created on first call if it doesn't exist yet). Admins simply drop images
-// into that folder in Drive — no manual folder ID configuration needed.
-function getDashboardImages() {
-  try {
-    const root   = DriveApp.getRootFolder();
-    const folder = getOrCreateSubfolder_(root, "Dashboard Carousel Images");
-
-    const images = [];
-    const files = folder.getFiles();
-    while (files.hasNext()) {
-      const file = files.next();
-      const mime = file.getMimeType();
-      if (mime.indexOf("image/") !== 0) continue;
-
-      try {
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      } catch (shareErr) {
-        // Non-fatal — image may already be shared, or sharing is restricted by domain policy
-      }
-
-      images.push({
-        fileId: file.getId(),
-        name:   file.getName(),
-        url:    "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1600"
-      });
-    }
-    return { success: true, images: images, folderUrl: folder.getUrl() };
-  } catch (err) {
-    return { success: false, message: "Error loading dashboard images: " + err.message, images: [] };
-  }
-}
+// NOTE (2026-09): getDashboardImages() (the "Gallery" image carousel) was
+// removed — it iterated every file in a Drive folder and called
+// file.setSharing() on each one on every single dashboard load, which was
+// the main reason the dashboard felt slow. The frontend no longer calls it.
 
 // ── getAllSubmissions ─────────────────────────────────────────────────────────
 function getAllSubmissions() {
@@ -1010,7 +1002,7 @@ function evaluateApplication(token, schoolId, decision, remarks, endorsementFile
   const applicantUsername = findUsernameByEmail_(found.ownerEmail);
   if (applicantUsername) {
     createNotification_(applicantUsername, null,
-      "Ang status ng application mong " + (found.applicationCode || schoolId) + " ay na-update sa: " + decision + ".",
+      "The status of your application " + (found.applicationCode || schoolId) + " has been updated to: " + decision + ".",
       schoolId);
   }
 
@@ -1051,9 +1043,9 @@ function reviewerReturnApplication(token, schoolId, remarks) {
   // application in this system, so broadcast to every Admin and Evaluator
   // account rather than trying to guess which one should see it.
   createNotification_(null, "Admin",
-    "Ibinalik ng Region ang application na " + (found.applicationCode || schoolId) + ": " + remarks, schoolId);
+    "Region returned the application " + (found.applicationCode || schoolId) + ": " + remarks, schoolId);
   createNotification_(null, "Evaluator",
-    "Ibinalik ng Region ang application na " + (found.applicationCode || schoolId) + ": " + remarks, schoolId);
+    "Region returned the application " + (found.applicationCode || schoolId) + ": " + remarks, schoolId);
 
   return { success: true, message: message };
 }
