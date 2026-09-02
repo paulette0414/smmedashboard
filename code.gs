@@ -61,7 +61,13 @@ const API_WHITELIST = {
   // ── Per-attachment document review (new; checks permissions itself) ───────
   getAttachmentReview: getAttachmentReview,
   reviewAttachment: reviewAttachment,
-  reuploadAttachment: reuploadAttachment
+  reuploadAttachment: reuploadAttachment,
+  // ── Reviewer (Region)-only (new; checks the session role itself) ──────────
+  reviewerReturnApplication: reviewerReturnApplication,
+  // ── In-app notifications (new; checks the session token itself) ───────────
+  getMyNotifications: getMyNotifications,
+  markNotificationRead: markNotificationRead,
+  markAllNotificationsRead: markAllNotificationsRead
   // NOTE: updateStatus() is intentionally NOT exposed directly — it has no
   // permission check of its own. evaluateApplication() wraps it with a
   // role check instead. Call updateStatus() directly only from the Apps
@@ -181,6 +187,15 @@ function generateApplicationCode() {
 //                          one block per Required-Document row the applicant
 //                          attached a MOV to (formatted server-side by
 //                          formatMovAttachments_ from the JSON the client sends)
+//  Q(17) Evaluation Remarks ← timestamped remarks log written by
+//                          evaluateApplication()/reviewerReturnApplication();
+//                          header lazily created on first use
+//  R(18) MOV Review Data ← JSON array, per-attachment Valid/Invalid review
+//                          state (see MOV_REVIEW_COL section below)
+//  S(19) Endorsement Letter ← Drive link to the letter uploaded when an
+//                          Evaluator/Admin sets status to "Endorsed to
+//                          Region" (required the first time; header lazily
+//                          created on first use — see evaluateApplication())
 // ── formatMovAttachments_ ──────────────────────────────────────────────────────
 // Converts the JSON string sent by the client (array of
 // {criteria, requirement, fileUrl, fileName}) into a human-readable, multi-line
@@ -599,7 +614,7 @@ function getDashboardStats() {
   const sheet = ss.getSheetByName("SchoolData");
   const lastRow = sheet.getLastRow();
 
-  const stats = { total: 0, pending: 0, endorsedToRegion: 0, onGoingReview: 0, forCompliance: 0 };
+  const stats = { total: 0, pending: 0, endorsedToRegion: 0, onGoingReview: 0, forCompliance: 0, returnedByRegion: 0 };
   if (lastRow < 2) return stats;
 
   const idCol     = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
@@ -612,6 +627,7 @@ function getDashboardStats() {
     if (status === "Endorsed to Region") stats.endorsedToRegion++;
     else if (status === "On-Going Review") stats.onGoingReview++;
     else if (status === "For Compliance") stats.forCompliance++;
+    else if (status === "Returned by Region") stats.returnedByRegion++;
     else stats.pending++;
   }
   return stats;
@@ -658,7 +674,7 @@ function getAllSubmissions() {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  const lastCol = Math.max(sheet.getLastColumn(), 15);
+  const lastCol = Math.max(sheet.getLastColumn(), 19);
   const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
   const tz = Session.getScriptTimeZone();
 
@@ -672,17 +688,18 @@ function getAllSubmissions() {
         dateStr = row[12].toString();
       }
       return {
-        schoolId:        row[0],
-        schoolName:      row[1],
-        coursesOffered:  row[3],
-        schoolYear:      row[4],
-        district:        row[7],
-        sector:          row[8],
-        applicationType: row[9],
-        emailAddress:    row[11] || "", // added for getMySubmissions() filtering — harmless extra field, existing renderRecords() ignores it
-        dateSubmitted:   dateStr,
-        status:          row[13] || "Pending",
-        applicationCode: row[14] || ""
+        schoolId:            row[0],
+        schoolName:          row[1],
+        coursesOffered:      row[3],
+        schoolYear:          row[4],
+        district:            row[7],
+        sector:              row[8],
+        applicationType:     row[9],
+        emailAddress:        row[11] || "", // added for getMySubmissions() filtering — harmless extra field, existing renderRecords() ignores it
+        dateSubmitted:       dateStr,
+        status:              row[13] || "Pending",
+        applicationCode:     row[14] || "",
+        endorsementLetterUrl: row[18] || "" // col S (19) — set by evaluateApplication when status becomes "Endorsed to Region"
       };
     });
 }
@@ -763,7 +780,7 @@ function registerAccount(data) {
   if (!username || !password || !fullName || !email) {
     return { success: false, message: "Please fill in all fields." };
   }
-  if (role !== "User" && role !== "Evaluator") {
+  if (role !== "User" && role !== "Evaluator" && role !== "Reviewer") {
     return { success: false, message: "Invalid role for self-registration." };
   }
   if (password.length < 6) {
@@ -775,7 +792,7 @@ function registerAccount(data) {
     return { success: false, message: "Username is already taken." };
   }
 
-  const status = (role === "Evaluator") ? "Pending" : "Active";
+  const status = (role === "Evaluator" || role === "Reviewer") ? "Pending" : "Active";
   const dateCreated = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
   sheet.appendRow([username, hashPassword_(password), role, fullName, email, dateCreated, status]);
 
@@ -783,7 +800,7 @@ function registerAccount(data) {
     return {
       success: true,
       status: status,
-      message: "Account created. Your Evaluator account is pending Admin approval before you can log in."
+      message: "Account created. Your " + role + " account is pending Admin approval before you can log in."
     };
   }
   return { success: true, status: status, message: "Account created. You may now log in." };
@@ -837,7 +854,10 @@ function getMySession(token) {
 
 // ── User role: only their own submissions (matched by the email address
 // on their account, so applicants should submit using that same email).
-// Admin/Evaluator get the full list, same as getAllSubmissions().
+// Admin/Evaluator get the full list, same as getAllSubmissions(). Reviewer
+// (Region) only sees applications currently "Endorsed to Region" — that is
+// their review queue; once they act on one (see reviewerReturnApplication),
+// it moves to a different status and drops out of this list on its own.
 function getMySubmissions(token) {
   const session = getSession_(token);
   if (!session) return { success: false, message: "Session expired. Please log in again." };
@@ -845,6 +865,9 @@ function getMySubmissions(token) {
   const all = getAllSubmissions();
   if (session.role === "Admin" || session.role === "Evaluator") {
     return { success: true, submissions: all };
+  }
+  if (session.role === "Reviewer") {
+    return { success: true, submissions: all.filter(function (r) { return r.status === "Endorsed to Region"; }) };
   }
 
   const usersSheet = getUsersSheet_();
@@ -941,7 +964,13 @@ function changePassword(token, oldPassword, newPassword) {
 // For Compliance (or reset to Pending), with an optional remarks note,
 // logged in a new "Evaluation Remarks" column (Q) so the original
 // 16-column SchoolData layout is undisturbed.
-function evaluateApplication(token, schoolId, decision, remarks) {
+//
+// endorsementFile is only used (and required) when decision is "Endorsed to
+// Region": { fileName, base64Data } for a freshly-attached endorsement
+// letter. If that application already has one on file from a previous save,
+// it's fine to omit endorsementFile on a later resave (e.g. editing remarks
+// only) — see the existingLetter check below.
+function evaluateApplication(token, schoolId, decision, remarks, endorsementFile) {
   const session = getSession_(token);
   if (!session || (session.role !== "Evaluator" && session.role !== "Admin")) {
     return { success: false, message: "Access denied." };
@@ -951,25 +980,200 @@ function evaluateApplication(token, schoolId, decision, remarks) {
     return { success: false, message: "Invalid decision." };
   }
 
-  const message = updateStatus(schoolId, decision);
+  const found = findSchoolRow_(schoolId);
+  if (!found) return { success: false, message: "Application not found." };
 
-  if (remarks) {
-    const ss    = SpreadsheetApp.openById("1Yc-DDDU8muIS5HR0OWoLclUnK6RGPrcVe_ydYlgWOYI");
-    const sheet = ss.getSheetByName("SchoolData");
-    const lastRow = sheet.getLastRow();
-    if (lastRow >= 2) {
-      const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
-      const rowIndex = ids.findIndex(function (v) { return v.toString().trim() === schoolId.toString().trim(); });
-      if (rowIndex !== -1) {
-        if (!sheet.getRange(1, 17).getValue()) sheet.getRange(1, 17).setValue("Evaluation Remarks");
-        const stamp = "[" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm") +
-          " - " + (session.fullName || session.username) + "]: " + remarks;
-        sheet.getRange(rowIndex + 2, 17).setValue(stamp);
-      }
+  if (decision === "Endorsed to Region") {
+    const existingLetter = (found.sheet.getRange(found.rowIndex1based, 19).getValue() || "").toString().trim();
+    if (!existingLetter && !(endorsementFile && endorsementFile.fileName && endorsementFile.base64Data)) {
+      return { success: false, message: "Please attach the endorsement letter before endorsing this application to Region." };
+    }
+    if (endorsementFile && endorsementFile.fileName && endorsementFile.base64Data) {
+      const uploadResult = uploadFileToDrive(endorsementFile.fileName, endorsementFile.base64Data, schoolId, found.applicationCode);
+      if (!uploadResult.success) return { success: false, message: "Endorsement letter upload failed: " + uploadResult.message };
+      if (!found.sheet.getRange(1, 19).getValue()) found.sheet.getRange(1, 19).setValue("Endorsement Letter");
+      found.sheet.getRange(found.rowIndex1based, 19).setValue(uploadResult.fileUrl);
     }
   }
 
+  const message = updateStatus(schoolId, decision);
+
+  if (remarks) {
+    if (!found.sheet.getRange(1, 17).getValue()) found.sheet.getRange(1, 17).setValue("Evaluation Remarks");
+    const stamp = "[" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm") +
+      " - " + (session.fullName || session.username) + "]: " + remarks;
+    found.sheet.getRange(found.rowIndex1based, 17).setValue(stamp);
+  }
+
+  // In-app notification only (no email) — let the applicant know their
+  // status changed, if their submission email matches a registered account.
+  const applicantUsername = findUsernameByEmail_(found.ownerEmail);
+  if (applicantUsername) {
+    createNotification_(applicantUsername, null,
+      "Ang status ng application mong " + (found.applicationCode || schoolId) + " ay na-update sa: " + decision + ".",
+      schoolId);
+  }
+
   return { success: true, message: message };
+}
+
+// ── Reviewer (Region)-only: send an "Endorsed to Region" application back to
+// the Division (any Admin or Evaluator) when its MOVs are incomplete or
+// incorrect. Deliberately a separate function from evaluateApplication — a
+// Reviewer's only allowed transition is Endorsed to Region -> Returned by
+// Region, nothing else; they cannot set any of the other statuses.
+function reviewerReturnApplication(token, schoolId, remarks) {
+  const session = getSession_(token);
+  if (!session || session.role !== "Reviewer") {
+    return { success: false, message: "Access denied." };
+  }
+  remarks = (remarks || "").toString().trim();
+  if (!remarks) {
+    return { success: false, message: "Please explain what needs to be corrected before returning this application." };
+  }
+
+  const found = findSchoolRow_(schoolId);
+  if (!found) return { success: false, message: "Application not found." };
+
+  const currentStatus = (found.sheet.getRange(found.rowIndex1based, 14).getValue() || "").toString().trim();
+  if (currentStatus !== "Endorsed to Region") {
+    return { success: false, message: "Only applications currently 'Endorsed to Region' can be returned." };
+  }
+
+  const message = updateStatus(schoolId, "Returned by Region");
+
+  if (!found.sheet.getRange(1, 17).getValue()) found.sheet.getRange(1, 17).setValue("Evaluation Remarks");
+  const stamp = "[" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm") +
+    " - " + (session.fullName || session.username) + ", Reviewer]: " + remarks;
+  found.sheet.getRange(found.rowIndex1based, 17).setValue(stamp);
+
+  // Alert the Division side — nobody is individually "assigned" to an
+  // application in this system, so broadcast to every Admin and Evaluator
+  // account rather than trying to guess which one should see it.
+  createNotification_(null, "Admin",
+    "Ibinalik ng Region ang application na " + (found.applicationCode || schoolId) + ": " + remarks, schoolId);
+  createNotification_(null, "Evaluator",
+    "Ibinalik ng Region ang application na " + (found.applicationCode || schoolId) + ": " + remarks, schoolId);
+
+  return { success: true, message: message };
+}
+
+// ── In-app notifications (new) — no email involved. Notifications live in
+// their own "Notifications" sheet, auto-created on first use. Each row is
+// addressed either to one specific username, or broadcast to every account
+// with a given role (e.g. "Admin") — useful since nobody is individually
+// "assigned" to an application here. ReadBy tracks (comma-separated) which
+// usernames have already dismissed it, since a role-broadcast notification
+// can be read by several different people independently.
+const NOTIFICATIONS_SHEET_NAME = "Notifications";
+
+function getNotificationsSheet_() {
+  const ss = SpreadsheetApp.openById("1Yc-DDDU8muIS5HR0OWoLclUnK6RGPrcVe_ydYlgWOYI");
+  let sheet = ss.getSheetByName(NOTIFICATIONS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(NOTIFICATIONS_SHEET_NAME);
+    sheet.appendRow(["ID", "RecipientUsername", "RecipientRole", "Message", "SchoolId", "CreatedAt", "ReadBy"]);
+    sheet.getRange(1, 1, 1, 7).setFontWeight("bold");
+  }
+  return sheet;
+}
+
+function createNotification_(recipientUsername, recipientRole, message, schoolId) {
+  const sheet = getNotificationsSheet_();
+  const id = Utilities.getUuid();
+  const createdAt = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
+  sheet.appendRow([id, recipientUsername || "", recipientRole || "", message || "", schoolId || "", createdAt, ""]);
+}
+
+// Looks up the Users-sheet username whose Email column matches the given
+// address (case-insensitive) — lets evaluateApplication notify the
+// applicant who owns a submission's email without requiring extra lookups
+// at the call site.
+function findUsernameByEmail_(email) {
+  const target = (email || "").toString().trim().toLowerCase();
+  if (!target) return "";
+  const sheet = getUsersSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return "";
+  const rows = sheet.getRange(2, 1, lastRow - 1, 5).getValues(); // Username(col1) .. Email(col5)
+  for (let i = 0; i < rows.length; i++) {
+    if ((rows[i][4] || "").toString().trim().toLowerCase() === target) return rows[i][0];
+  }
+  return "";
+}
+
+function getMyNotifications(token) {
+  const session = getSession_(token);
+  if (!session) return { success: false, message: "Session expired. Please log in again." };
+
+  const sheet = getNotificationsSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true, notifications: [], unreadCount: 0 };
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
+  const mine = [];
+  for (let i = 0; i < rows.length; i++) {
+    const recipientUsername = rows[i][1], recipientRole = rows[i][2];
+    const isMine = (recipientUsername && recipientUsername.toString().trim().toLowerCase() === session.username.toLowerCase()) ||
+                   (recipientRole && recipientRole === session.role);
+    if (!isMine) continue;
+    const readList = (rows[i][6] || "").toString().split(",").map(function (s) { return s.trim().toLowerCase(); }).filter(Boolean);
+    mine.push({
+      id: rows[i][0],
+      message: rows[i][3],
+      schoolId: rows[i][4],
+      createdAt: rows[i][5],
+      isRead: readList.indexOf(session.username.toLowerCase()) !== -1
+    });
+  }
+  mine.reverse(); // newest first — rows are appended oldest-first
+  const trimmed = mine.slice(0, 50);
+  const unreadCount = trimmed.filter(function (n) { return !n.isRead; }).length;
+  return { success: true, notifications: trimmed, unreadCount: unreadCount };
+}
+
+function markNotificationRead(token, notificationId) {
+  const session = getSession_(token);
+  if (!session) return { success: false, message: "Session expired. Please log in again." };
+
+  const sheet = getNotificationsSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true };
+
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+  const rowIdx = ids.findIndex(function (v) { return v.toString().trim() === (notificationId || "").toString().trim(); });
+  if (rowIdx === -1) return { success: false, message: "Notification not found." };
+
+  const cell = sheet.getRange(rowIdx + 2, 7);
+  const readList = (cell.getValue() || "").toString().split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+  if (readList.map(function (s) { return s.toLowerCase(); }).indexOf(session.username.toLowerCase()) === -1) {
+    readList.push(session.username);
+    cell.setValue(readList.join(","));
+  }
+  return { success: true };
+}
+
+function markAllNotificationsRead(token) {
+  const session = getSession_(token);
+  if (!session) return { success: false, message: "Session expired. Please log in again." };
+
+  const sheet = getNotificationsSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true };
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
+  for (let i = 0; i < rows.length; i++) {
+    const recipientUsername = rows[i][1], recipientRole = rows[i][2];
+    const isMine = (recipientUsername && recipientUsername.toString().trim().toLowerCase() === session.username.toLowerCase()) ||
+                   (recipientRole && recipientRole === session.role);
+    if (!isMine) continue;
+    const readList = (rows[i][6] || "").toString().split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (readList.map(function (s) { return s.toLowerCase(); }).indexOf(session.username.toLowerCase()) === -1) {
+      readList.push(session.username);
+      sheet.getRange(i + 2, 7).setValue(readList.join(","));
+    }
+  }
+  return { success: true };
 }
 
 // ── Per-attachment document review: view / decide / re-upload ──────────────
@@ -988,9 +1192,9 @@ function findSchoolRow_(schoolId) {
   return { sheet: sheet, rowIndex1based: row1based, ownerEmail: ownerEmail, applicationCode: applicationCode };
 }
 
-// Admin/Evaluator can view any application's attachments; a User can only
-// view their own (matched by the email on their account, same rule as
-// getMySubmissions()).
+// Admin/Evaluator/Reviewer can view any application's attachments; a User
+// can only view their own (matched by the email on their account, same
+// rule as getMySubmissions()).
 function getAttachmentReview(token, schoolId) {
   const session = getSession_(token);
   if (!session) return { success: false, message: "Session expired. Please log in again." };
@@ -998,7 +1202,7 @@ function getAttachmentReview(token, schoolId) {
   const found = findSchoolRow_(schoolId);
   if (!found) return { success: false, message: "Application not found." };
 
-  if (session.role !== "Admin" && session.role !== "Evaluator") {
+  if (session.role !== "Admin" && session.role !== "Evaluator" && session.role !== "Reviewer") {
     const myEmail = (session.email || "").toString().trim().toLowerCase();
     if (!myEmail || myEmail !== found.ownerEmail) {
       return { success: false, message: "Access denied." };
@@ -1009,12 +1213,14 @@ function getAttachmentReview(token, schoolId) {
   return { success: true, schoolId: schoolId, applicationCode: found.applicationCode, items: items };
 }
 
-// Evaluator/Admin-only: mark one attachment Valid/Invalid (or back to
-// Pending) with optional remarks, identified by its criteria label (stable
-// per application type — see mergeMovReviewData_).
+// Evaluator/Admin/Reviewer-only: mark one attachment Valid/Invalid (or back
+// to Pending) with optional remarks, identified by its criteria label
+// (stable per application type — see mergeMovReviewData_). Reviewer needs
+// this so they can flag a missing/incorrect MOV before returning the whole
+// application (see reviewerReturnApplication).
 function reviewAttachment(token, schoolId, criteria, status, remarks) {
   const session = getSession_(token);
-  if (!session || (session.role !== "Evaluator" && session.role !== "Admin")) {
+  if (!session || (session.role !== "Evaluator" && session.role !== "Admin" && session.role !== "Reviewer")) {
     return { success: false, message: "Access denied." };
   }
   if (status !== "Pending" && status !== "Valid" && status !== "Invalid") {

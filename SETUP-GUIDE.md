@@ -76,8 +76,8 @@ Wala nang ibang binago sa "SchoolData" o "Settings" tabs mo — pareho pa rin an
 
 Bukod sa desisyon para sa buong application (Pending / Endorsed to Region / On-Going Review / For Compliance), may bago na ring paraan para tingnan at markahan ang **bawat individual na naka-attach na requirement/MOV**:
 
-1. Sa Application Status tab (Admin/Evaluator/User), may bagong column na **"Documents"** — i-click ang button doon (📄 Review para sa Admin/Evaluator, 📄 View para sa User) para buksan ang listahan ng lahat ng naka-attach na files para sa application na iyon.
-2. **Bilang Evaluator o Admin:** makikita mo ang bawat attachment kasama ang link para buksan/tingnan ang file, isang dropdown (Pending / Valid / Invalid), at isang remarks box. Piliin ang status, maglagay ng remarks kung kailangan, i-click **Save** — per-document ito, kaya iba-iba puwedeng markahan ang bawat isa sa parehong application.
+1. Sa Application Status tab (Admin/Evaluator/Reviewer/User), may bagong column na **"Documents"** — i-click ang button doon (📄 Review para sa Admin/Evaluator/Reviewer, 📄 View para sa User) para buksan ang listahan ng lahat ng naka-attach na files para sa application na iyon.
+2. **Bilang Evaluator, Admin, o Reviewer:** makikita mo ang bawat attachment kasama ang link para buksan/tingnan ang file, isang dropdown (Pending / Valid / Invalid), at isang remarks box. Piliin ang status, maglagay ng remarks kung kailangan, i-click **Save** — per-document ito, kaya iba-iba puwedeng markahan ang bawat isa sa parehong application.
 3. **Bilang User:** makikita mo ang parehong listahan pero read-only — status pill (Pending/Valid/Invalid) at ang remarks ng Evaluator kung meron. Sa alinmang naka-mark na **Invalid**, may lalabas na button na **"⬆ Re-upload corrected file"** — doon ka na lang mag-a-attach ng bagong file para doon lang sa specific na requirement na iyon (hindi na kailangang i-resubmit ang buong application form). Awtomatikong babalik sa "Pending" ang status pagkatapos, para malaman ng Evaluator na kailangan na itong i-review ulit.
 4. **Mahalaga:** ang feature na ito ay gumagana lang sa mga bagong application (o mga existing application na na-resave/na-touch) simula sa pag-deploy ng update na ito — kasi doon lang nag-uumpisang ma-populate ang bagong column R. Kung may mga lumang application ka na sa Sheet bago ang update na ito, walang lalabas na documents doon hangga't hindi na-re-save ang record na iyon (hal. sa pamamagitan ng isang bagong MOV upload).
 
@@ -91,8 +91,10 @@ Pinalitan na ang dating "Approved / Rejected" na desisyon ng Evaluator/Admin —
 - **For Compliance** — may kulang o kailangang ayusin muna ang applicant bago ito matuloy.
 
 Makikita ito sa dalawang lugar:
-1. **Application Status tab** — ang dropdown sa "Evaluate" column (Admin/Evaluator lang) ay nagpapalit na ng status ng buong application papunta sa alinman sa apat na ito.
-2. **Dashboard** — limang scorecard na ngayon: Total Submitted Applications, Pending, Endorsed to Region, On-Going Review, at For Compliance — awtomatiko itong bibilangin base sa Status column ng bawat application.
+1. **Application Status tab** — ang dropdown sa "Evaluate" column (Admin/Evaluator lang) ay nagpapalit na ng status ng buong application papunta sa alinman sa apat na ito. (Meron ng ikalimang status, "Returned by Region" — tingnan ang Bahagi 10.)
+2. **Dashboard** — anim na scorecard na ngayon: Total Submitted Applications, Pending, Endorsed to Region, On-Going Review, For Compliance, at ang bagong Returned by Region — awtomatiko itong bibilangin base sa Status column ng bawat application.
+
+**Bago para sa "Endorsed to Region":** simula ngayon, **kailangan muna ng naka-attach na endorsement letter** bago ma-save ang desisyong ito — tingnan ang Bahagi 10 para sa detalye.
 
 **Tandaan:** ang per-document na Valid/Invalid review (Bahagi 6) ay HIWALAY dito — iba ang bagay na ineevaluate: ang Bahagi 6 ay para sa bawat individual na naka-attach na file, habang itong Bahagi 7 ay para sa desisyon ng BUONG application.
 
@@ -100,8 +102,9 @@ Makikita ito sa dalawang lugar:
 
 ## Bahagi 8 — Paano gagamitin ng mga tao ang bagong login
 
-- **Ikaw (Admin):** mag-login gamit ang `admin` / `ChangeThisPassword123` (Bahagi 2), agad palitan ang password gamit ang "CHANGE PASSWORD" button. Makikita mo lahat ng application, at may extra tab kang "Manage Users" kung saan mo maa-approve o madi-disable ang mga Evaluator/User account.
+- **Ikaw (Admin):** mag-login gamit ang `admin` / `ChangeThisPassword123` (Bahagi 2), agad palitan ang password gamit ang "CHANGE PASSWORD" button. Makikita mo lahat ng application, at may extra tab kang "Manage Users" kung saan mo maa-approve o madi-disable ang mga Evaluator/Reviewer/User account.
 - **Mga Evaluator (hal. mga taga-SGOD na mag-rereview):** ituro mo sa kanila na pumunta sa site, i-click ang "Register" tab, piliin ang role na "Evaluator", at magparehistro. Sasabihin sa kanila na "Pending pa ang account, hihintayin ang admin approval" — dito ka na papasok: buksan mo ang "Manage Users" tab, hanapin ang account nila, i-click **Approve**. Pagkatapos, puwede na silang mag-login.
+- **Mga Reviewer (Region):** kagaya rin ito ng Evaluator — mag-Register sila, piliin ang role na "Reviewer (Region)", Pending muna hanggang i-approve mo sa "Manage Users". Pagka-login, ang makikita lang nila sa "Application Status" ay yung mga application na naka-"Endorsed to Region" — tingnan ang Bahagi 10 para sa buong detalye ng ginagawa nila.
 - **Mga applicant/schools (User):** ituro mo rin sa kanila na mag-Register, piliin ang role na "User" — agad silang makaka-login pagkatapos, walang paghihintay. **Mahalaga:** ang email address na gagamitin nila sa pag-register ang siya ring dapat nilang ilagay sa "Email Address" field ng Application Form nila — ito ang ginagamit ng system para malaman kung aling mga submission ang sa kanila. (Awtomatiko na itong nilalagay at nili-lock ng system sa form kapag naka-login sila bilang User, para hindi na sila magkakamali.)
 
 ## Bahagi 9 — Testing
@@ -113,22 +116,53 @@ Makikita ito sa dalawang lugar:
 5. Mag-register ng test Evaluator account, i-approve mo ito sa "Manage Users", mag-login bilang Evaluator, tapos subukan palitan ang status ng test application (hal. papuntang "Endorsed to Region") sa "Application Status" — dapat lumabas ang desisyon at remarks doon, at dapat mag-update din ang bilang sa Dashboard scorecard.
 6. Subukan din i-disable ang isang test account sa "Manage Users" — dapat hindi na sila makapag-login pagkatapos.
 7. Sa parehong test application, mag-attach ng ilang MOV files bago i-submit. Pagkatapos, mag-login bilang Evaluator, buksan ang "Documents" button para doon, markahan ang isa **Invalid** na may remarks, at isa **Valid**. Mag-login pabalik bilang yung test User — dapat makita nila ang parehong status/remarks sa kanilang sariling "Documents" view, at may **"Re-upload corrected file"** button sa naka-Invalid na item. Subukan mag-reupload — dapat mag-Pending ulit ang status noon, at hindi dapat maapektuhan yung isa pang item (Valid pa rin dapat).
+8. Tingnan din ang Bahagi 10 sa ibaba para sa hakbang-hakbang na testing ng Reviewer role, endorsement letter, at notifications.
+
+## Bahagi 10 — Bagong feature: Reviewer (Region) account, endorsement letter, at notifications
+
+**(A) Kulay ng "Review"/"Save" buttons.** Naayos na rin ang isyu na dating hindi makita ang mga "📄 Review"/"📄 View" (Documents) button at ang "Save" button sa loob ng Documents modal — dating puti-sa-puti dahil walang background color. May kulay na itong asul ngayon sa lahat ng lugar.
+
+**(B) Endorsement letter kapag "Endorsed to Region".** Simula ngayon, kapag pinili ng Evaluator/Admin ang "Endorsed to Region" sa dropdown ng "Evaluate" column at ni-click ang **Save**, lalabas muna ang isang paalala na **"please attached endorsement letter"** at bubukas ang file picker — kailangang pumili ng file (ang endorsement letter) bago matuloy ang pag-save. Kapag naka-attach na ang isang letter sa isang application, hindi na ito uulitin sa susunod na pag-save ng parehong status (hal. remarks-only na update) — basta't hindi binago ang decision papunta sa ibang status at pabalik.
+
+**(C) Bagong role: Reviewer (Region).** Ito yung account para sa Regional Office:
+- Mag-Register sila katulad ng Evaluator (piliin ang "Reviewer (Region)"), Pending muna hanggang i-approve ng Admin sa "Manage Users".
+- Pag-login nila, ang "Application Status" nila ay awtomatikong naka-filter na sa mga application na naka-**"Endorsed to Region"** lang — wala silang makikitang ibang status.
+- May access din silang tumingin at mag-markahan ng Valid/Invalid sa bawat naka-attach na document (parehong "Documents" review na ginagamit ng Evaluator/Admin — tingnan Bahagi 6).
+- Sa halip na "Evaluate" dropdown, may button silang **"↩️ Return to Division"** — ito ang gagamitin nila kung may kulang o maling MOV. Kailangan nilang maglagay ng remarks (hindi puwedeng blangko) na magpapaliwanag kung ano ang kailangang ayusin. Pagka-click, mababago ang status ng application papunta sa bagong status na **"Returned by Region"** (may sarili itong dashboard scorecard at badge color — lila).
+- Awtomatikong may notification na mapupunta sa Admin at Evaluator pagka-ibinalik ng Reviewer ang isang application, para agad nilang malaman.
+
+**(D) In-app notifications.** May bagong 🔔 "Notifications" button ngayon sa ilalim ng account badge (sa sidebar) — walang email na ipinapadala, sa loob lang ng app makikita. Awtomatikong may notification na dumarating sa:
+- **Applicant (User):** tuwing may nagbagong status ang application nila (Endorsed to Region, On-Going Review, For Compliance, o Returned by Region).
+- **Admin at Evaluator:** tuwing ibinalik (Return to Division) ng isang Reviewer ang isang application.
+
+May pulang bilang na lalabas sa ibabaw ng 🔔 button kung may unread na notification. I-click ang button para buksan ang listahan, i-click ang isang notification para markahan itong "read", o gamitin ang "Mark all read" link para markahan lahat.
+
+**Paano i-test:**
+1. Mag-register ng test Reviewer account, i-approve sa "Manage Users", mag-login.
+2. Gamit ang isang Evaluator account, subukan i-save ang "Endorsed to Region" nang WALANG naka-attach na letter — dapat may lalabas na paalala/error. Pagkatapos, ulitin habang naka-attach ng file — dapat matagumpay ito.
+3. Mag-login bilang Reviewer — dapat lang makita ang application na kararaang na-"Endorsed to Region".
+4. I-click ang "↩️ Return to Division" nang walang laman ang remarks — dapat mag-error. Maglagay ng remarks, i-click ulit — dapat magbago ang status papuntang "Returned by Region", at dapat makita ito sa Dashboard scorecard.
+5. Mag-login pabalik bilang Admin o Evaluator — dapat may bagong notification (🔔 na may pulang bilang) tungkol sa pagkaka-return ng Reviewer.
+6. Mag-login bilang yung applicant (User) na may-ari ng application — dapat may notification din sila kada pagbabago ng status.
 
 ## Buod ng mga bagong function sa code.gs (kung sakaling kailangan mo i-check)
 
 | Function | Sino ang puwede | Ginagawa |
 |---|---|---|
-| `registerAccount` | Kahit sino | Self-signup bilang User (agad Active) o Evaluator (Pending) |
+| `registerAccount` | Kahit sino | Self-signup bilang User (agad Active), o Evaluator/Reviewer (Pending) |
 | `loginAccount` | Kahit sino | Mag-login, nagbabalik ng session token (6 oras bago mag-expire) |
 | `logoutAccount` | Naka-login | Inaalis ang session |
 | `getMySession` | Naka-login | Ibinabalik ang role/pangalan/email, para hindi mawala ang session pag nag-refresh ng page |
 | `changePassword` | Naka-login | Palitan ang sariling password |
-| `getMySubmissions` | Naka-login | User: sariling submissions lang. Admin/Evaluator: lahat |
+| `getMySubmissions` | Naka-login | User: sariling submissions lang. Admin/Evaluator: lahat. Reviewer: yung mga "Endorsed to Region" lang |
 | `listUsers` / `setUserStatus` | Admin lang | Tingnan/i-approve/i-disable ang mga account |
 | `createAdminAccount` | Admin lang | Gumawa ng dagdag na Admin account |
-| `evaluateApplication` | Evaluator/Admin lang | Mag-decide (Pending/Endorsed to Region/On-Going Review/For Compliance) + remarks sa BUONG application |
-| `getAttachmentReview` | Naka-login | Ibinabalik ang listahan ng lahat ng naka-attach na document + status/remarks nito (Admin/Evaluator: kahit anong application; User: sariling application lang) |
-| `reviewAttachment` | Evaluator/Admin lang | Markahan ang isang partikular na document na Valid/Invalid/Pending + remarks |
+| `evaluateApplication` | Evaluator/Admin lang | Mag-decide (Pending/Endorsed to Region/On-Going Review/For Compliance) + remarks sa BUONG application. Kailangan ng endorsement letter (`endorsementFile`) bago tanggapin ang "Endorsed to Region" kung wala pa itong naka-attach na letter |
+| `reviewerReturnApplication` | Reviewer lang | Ibalik sa "Returned by Region" ang isang application na "Endorsed to Region", may required na remarks |
+| `getAttachmentReview` | Naka-login | Ibinabalik ang listahan ng lahat ng naka-attach na document + status/remarks nito (Admin/Evaluator/Reviewer: kahit anong application; User: sariling application lang) |
+| `reviewAttachment` | Evaluator/Admin/Reviewer | Markahan ang isang partikular na document na Valid/Invalid/Pending + remarks |
 | `reuploadAttachment` | May-ari ng application (User) o Admin | Palitan ang file ng isang partikular na document, ibabalik sa Pending ang status nito |
+| `getMyNotifications` | Naka-login | Ibinabalik ang mga in-app notification na para sa naka-login (base sa username o role) |
+| `markNotificationRead` / `markAllNotificationsRead` | Naka-login | Markahan bilang "read" ang isa o lahat ng sariling notifications |
 
 Ang lahat ng ibang function (submission, dashboard stats, file upload, requirements, atbp.) ay **hindi ginalaw** — eksakto pa rin ito sa orihinal mong code.gs.

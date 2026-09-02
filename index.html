@@ -128,6 +128,41 @@ body{
 .account-badge button:hover{ background:rgba(255,255,255,0.22); }
 .account-badge button + button{ margin-top:6px; }
 
+/* ── Notification bell + panel (new) ──────────────────────────────────── */
+.notif-bell-wrap{ position:relative; margin-top:10px; }
+.notif-bell{
+  width:100%; background:rgba(255,255,255,0.12); color:#fff;
+  border:1px solid rgba(255,255,255,0.25); padding:8px; font-size:12px; font-weight:700;
+  box-shadow:none; display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.notif-bell:hover{ background:rgba(255,255,255,0.22); }
+.notif-count{
+  background:var(--err); color:#fff; border-radius:10px; padding:1px 7px;
+  font-size:10.5px; font-weight:800; line-height:1.4;
+}
+.notif-panel{
+  position:absolute; top:calc(100% + 8px); left:0; width:300px; max-width:80vw;
+  background:#fff; color:var(--text); border-radius:10px; box-shadow:0 8px 30px rgba(6,38,92,0.35);
+  z-index:50; overflow:hidden; border:1px solid var(--border);
+}
+.notif-panel-head{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 14px; background:var(--deped-blue-light); font-weight:700; font-size:12.5px;
+  color:var(--deped-blue);
+}
+.notif-panel-head a{ color:var(--deped-blue); font-size:11px; font-weight:700; text-decoration:none; }
+.notif-panel-head a:hover{ text-decoration:underline; }
+.notif-panel-body{ max-height:320px; overflow-y:auto; }
+.notif-empty{ padding:20px; text-align:center; color:var(--muted); font-size:12.5px; }
+.notif-item{
+  padding:10px 14px; border-bottom:1px solid #edf1f8; font-size:12.5px; cursor:pointer;
+  display:flex; flex-direction:column; gap:3px; text-align:left;
+}
+.notif-item:hover{ background:#f4f8ff; }
+.notif-item.unread{ background:var(--deped-blue-light); }
+.notif-item .notif-msg{ line-height:1.4; }
+.notif-item .notif-time{ font-size:10.5px; color:var(--muted); }
+
 /* ── Main content ──────────────────────────────────────────────────────── */
 .main{ flex:1; min-width:0; display:flex; flex-direction:column; background:#f7f9fd; }
 .topbar{
@@ -214,6 +249,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .badge.EndorsedToRegion{ background:var(--ok); }
 .badge.OnGoingReview{ background:var(--deped-blue); }
 .badge.ForCompliance{ background:var(--err); }
+.badge.ReturnedByRegion{ background:#7c3aed; }
 .badge.Other{ background:#64748b; }
 .records-empty{ padding:36px; text-align:center; color:#8b98b3; }
 
@@ -221,7 +257,8 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .eval-cell{ white-space:nowrap; }
 .eval-cell select{ display:inline-block; width:auto; padding:6px 8px; font-size:12px; margin-right:6px; }
 .eval-cell button{ display:inline-block; width:auto; padding:6px 12px; font-size:12px; background:linear-gradient(135deg,var(--deped-navy),var(--deped-blue)); }
-.records td .docs-view-btn, .records td button{ display:inline-block; width:auto; padding:6px 12px; font-size:12px; white-space:nowrap; }
+.records td button{ display:inline-block; width:auto; padding:6px 12px; font-size:12px; white-space:nowrap; }
+.docs-view-btn{ background:linear-gradient(135deg,var(--deped-blue-2),var(--deped-blue)); }
 
 /* ── Downloadable Forms list ───────────────────────────────────────────── */
 .forms-list{ display:flex; flex-direction:column; gap:10px; }
@@ -291,7 +328,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 
 /* ── Dashboard: scorecards ─────────────────────────────────────────────── */
 .stat-grid{
-  display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:20px;
+  display:grid; grid-template-columns:repeat(6,1fr); gap:16px; margin-bottom:20px;
 }
 .stat-card{
   background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px;
@@ -304,12 +341,14 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .stat-card.endorsed{ border-top-color:var(--ok); }
 .stat-card.ongoing{ border-top-color:var(--deped-blue); }
 .stat-card.compliance{ border-top-color:var(--err); }
+.stat-card.returned{ border-top-color:#7c3aed; }
 .stat-icon{ font-size:26px; }
 .stat-value{ font-size:32px; font-weight:800; color:var(--deped-blue); line-height:1; }
 .stat-card.pending .stat-value{ color:var(--warn); }
 .stat-card.endorsed .stat-value{ color:var(--ok); }
 .stat-card.ongoing .stat-value{ color:var(--deped-blue); }
 .stat-card.compliance .stat-value{ color:var(--err); }
+.stat-card.returned .stat-value{ color:#7c3aed; }
 .stat-label{ font-size:12.5px; color:var(--muted); font-weight:600; }
 
 /* ── Dashboard: image carousel ─────────────────────────────────────────── */
@@ -422,7 +461,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .docs-review-row{ margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 .docs-review-row select{ width:auto; padding:6px 8px; font-size:12px; }
 .docs-review-row input[type="text"]{ flex:1; min-width:180px; padding:6px 8px; font-size:12px; }
-.docs-review-row button{ width:auto; padding:6px 14px; font-size:12px; }
+.docs-review-row button{ width:auto; padding:6px 14px; font-size:12px; background:linear-gradient(135deg,var(--deped-navy),var(--deped-blue)); }
 .docs-reupload-row{ margin-top:10px; }
 .docs-reupload-row button{ width:auto; padding:6px 14px; font-size:12px; background:linear-gradient(135deg,var(--warn),#b45309); }
 .docs-empty{ text-align:center; color:var(--muted); font-size:13px; padding:20px; }
@@ -474,6 +513,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
           <select id="regRole">
             <option value="User">Applicant / School (User)</option>
             <option value="Evaluator">Evaluator</option>
+            <option value="Reviewer">Reviewer (Region)</option>
           </select>
         </div>
         <div class="auth-field">
@@ -530,6 +570,20 @@ table.records tbody tr:hover{ background:#f4f8ff; }
     <div class="account-badge">
       <div class="who" id="acctFullName">—</div>
       <span class="role" id="acctRole">—</span>
+      <div class="notif-bell-wrap">
+        <button type="button" class="notif-bell" onclick="toggleNotifPanel()" title="Notifications">
+          🔔 Notifications <span class="notif-count" id="notifCount" hidden>0</span>
+        </button>
+        <div class="notif-panel" id="notifPanel" hidden>
+          <div class="notif-panel-head">
+            <span>Notifications</span>
+            <a href="#" onclick="event.preventDefault(); doMarkAllNotificationsRead();">Mark all read</a>
+          </div>
+          <div class="notif-panel-body" id="notifPanelBody">
+            <div class="notif-empty">No notifications yet.</div>
+          </div>
+        </div>
+      </div>
       <button type="button" onclick="doChangePassword()" title="Change your password">CHANGE PASSWORD</button>
       <button type="button" onclick="doLogout()">LOG OUT</button>
     </div>
@@ -601,6 +655,11 @@ table.records tbody tr:hover{ background:#f4f8ff; }
             <div class="stat-icon">📋</div>
             <div class="stat-value" id="statCompliance">–</div>
             <div class="stat-label">For Compliance</div>
+          </div>
+          <div class="stat-card returned">
+            <div class="stat-icon">↩️</div>
+            <div class="stat-value" id="statReturned">–</div>
+            <div class="stat-label">Returned by Region</div>
           </div>
         </div>
 
@@ -835,16 +894,89 @@ function enterApp() {
   document.getElementById("acctFullName").textContent = session.fullName || session.username;
   document.getElementById("acctRole").textContent = session.role;
 
-  // Role-based visibility: Evaluators review — they don't submit applications.
-  document.getElementById("navFormLi").hidden = (session.role === "Evaluator");
+  // Role-based visibility: Evaluators/Reviewers review — they don't submit applications.
+  document.getElementById("navFormLi").hidden = (session.role === "Evaluator" || session.role === "Reviewer");
   // Only Admins manage accounts.
   document.getElementById("tabBtnUsers").hidden = (session.role !== "Admin");
+
+  loadNotifications();
+  if (notificationPollTimer) clearInterval(notificationPollTimer);
+  notificationPollTimer = setInterval(loadNotifications, 45000);
 
   if (!appInitialized) { appInitialized = true; initApp(); }
   else { dashboardLoaded = false; loadDashboard(); }
 }
 
 let appInitialized = false;
+
+/* ── In-app notifications (new) ─────────────────────────────────────────
+   Polled after login and every 45s while the app is open; also refreshed
+   right after actions that are known to create a notification for the
+   current user (handled inline where relevant). Backed by
+   getMyNotifications / markNotificationRead / markAllNotificationsRead in
+   code.gs. ──────────────────────────────────────────────────────────── */
+let notificationPollTimer = null;
+let myNotifications = [];
+
+function loadNotifications() {
+  callAppsScript('getMyNotifications', [session.token])
+    .then(function (res) {
+      if (!res || !res.success) return;
+      myNotifications = res.notifications || [];
+      renderNotifBell();
+      renderNotifPanel();
+    })
+    .catch(function () { /* fail quietly — notifications are non-critical */ });
+}
+
+function renderNotifBell() {
+  const unread = myNotifications.filter(function (n) { return !n.isRead; }).length;
+  const countEl = document.getElementById('notifCount');
+  if (unread > 0) {
+    countEl.hidden = false;
+    countEl.textContent = unread > 99 ? "99+" : String(unread);
+  } else {
+    countEl.hidden = true;
+  }
+}
+
+function renderNotifPanel() {
+  const body = document.getElementById('notifPanelBody');
+  if (!myNotifications.length) {
+    body.innerHTML = '<div class="notif-empty">No notifications yet.</div>';
+    return;
+  }
+  body.innerHTML = myNotifications.map(function (n) {
+    return '<div class="notif-item' + (n.isRead ? '' : ' unread') + '" onclick="doMarkNotificationRead(\'' + escapeHtml(n.id) + '\')">' +
+      '<div class="notif-msg">' + escapeHtml(n.message) + '</div>' +
+      '<div class="notif-time">' + escapeHtml(n.createdAt || '') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function toggleNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  panel.hidden = !panel.hidden;
+}
+
+function doMarkNotificationRead(id) {
+  callAppsScript('markNotificationRead', [session.token, id])
+    .then(function () { loadNotifications(); })
+    .catch(function () { /* ignore */ });
+}
+
+function doMarkAllNotificationsRead() {
+  callAppsScript('markAllNotificationsRead', [session.token])
+    .then(function () { loadNotifications(); })
+    .catch(function () { /* ignore */ });
+}
+
+document.addEventListener('click', function (e) {
+  const wrap = document.querySelector('.notif-bell-wrap');
+  const panel = document.getElementById('notifPanel');
+  if (!wrap || !panel || panel.hidden) return;
+  if (!wrap.contains(e.target)) panel.hidden = true;
+});
 
 /* ── State ───────────────────────────────────────────────────────────────── */
 let selectedApplicationType = "";
@@ -1278,9 +1410,10 @@ function loadDashboard() {
       document.getElementById('statEndorsed').textContent   = stats.endorsedToRegion;
       document.getElementById('statOngoing').textContent    = stats.onGoingReview;
       document.getElementById('statCompliance').textContent = stats.forCompliance;
+      document.getElementById('statReturned').textContent   = stats.returnedByRegion;
     })
     .catch(function () {
-      ['statTotal', 'statPending', 'statEndorsed', 'statOngoing', 'statCompliance'].forEach(function (id) {
+      ['statTotal', 'statPending', 'statEndorsed', 'statOngoing', 'statCompliance', 'statReturned'].forEach(function (id) {
         document.getElementById(id).textContent = "–";
       });
     });
@@ -1385,6 +1518,8 @@ function renderRecords() {
   const filterVal = (document.getElementById("statusFilter").value || "").toLowerCase().trim();
   const container = document.getElementById("recordsContainer");
   const canEvaluate = (session.role === "Admin" || session.role === "Evaluator");
+  const isReviewer  = (session.role === "Reviewer");
+  const canReviewDocs = canEvaluate || isReviewer;
 
   const filtered = allRecords.filter(function (r) {
     if (!filterVal) return true;
@@ -1402,6 +1537,7 @@ function renderRecords() {
     '<th>Application Code</th><th>School ID</th><th>School Name</th><th>Courses Offered</th><th>School Year</th>' +
     '<th>District</th><th>Sector</th><th>Application Type</th><th>Date Submitted</th><th>Status</th><th>Documents</th>' +
     (canEvaluate ? '<th>Evaluate</th>' : '') +
+    (isReviewer ? '<th>Region Action</th>' : '') +
     '</tr></thead><tbody>';
 
   filtered.forEach(function (r) {
@@ -1418,8 +1554,8 @@ function renderRecords() {
       '<td>' + escapeHtml(r.applicationType) + '</td>' +
       '<td>' + escapeHtml(r.dateSubmitted) + '</td>' +
       '<td><span class="badge ' + statusClass + '">' + escapeHtml(r.status) + '</span></td>' +
-      '<td><button type="button" onclick="openDocsModal(\'' + safeId + '\')">' +
-        (canEvaluate ? '📄 Review' : '📄 View') + '</button></td>';
+      '<td><button type="button" class="docs-view-btn" onclick="openDocsModal(\'' + safeId + '\')">' +
+        (canReviewDocs ? '📄 Review' : '📄 View') + '</button></td>';
     if (canEvaluate) {
       html += '<td class="eval-cell">' +
         '<select id="evalDecision_' + safeId + '">' +
@@ -1429,6 +1565,12 @@ function renderRecords() {
           '<option value="For Compliance"' + (r.status === 'For Compliance' ? ' selected' : '') + '>For Compliance</option>' +
         '</select>' +
         '<button type="button" onclick="doEvaluate(\'' + safeId + '\')">Save</button>' +
+        '<input type="file" id="endorseFile_' + safeId + '" style="display:none;">' +
+      '</td>';
+    }
+    if (isReviewer) {
+      html += '<td class="eval-cell">' +
+        '<button type="button" onclick="doReviewerReturn(\'' + safeId + '\')">↩️ Return to Division</button>' +
       '</td>';
     }
     html += '</tr>';
@@ -1441,8 +1583,58 @@ function renderRecords() {
 function doEvaluate(schoolId) {
   const select = document.getElementById('evalDecision_' + schoolId);
   const decision = select.value;
+  const saveBtn = select.parentElement.querySelector('button');
+
+  if (decision === "Endorsed to Region") {
+    const record = allRecords.find(function (r) { return (r.schoolId || "") === schoolId; });
+    const alreadyHasLetter = !!(record && record.endorsementLetterUrl);
+    const fileInput = document.getElementById('endorseFile_' + schoolId);
+
+    if (!alreadyHasLetter) {
+      alert("Please attached endorsement letter.\n\nA file picker will now open — please select the endorsement letter to attach before this application can be endorsed to Region.");
+      fileInput.value = "";
+      fileInput.onchange = function () {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function () {
+          const base64Data = reader.result.split(',')[1];
+          const remarks = prompt("Optional remarks for this decision (leave blank to skip):", "") || "";
+          submitEvaluate(schoolId, decision, remarks, { fileName: file.name, base64Data: base64Data }, saveBtn);
+        };
+        reader.readAsDataURL(file);
+      };
+      fileInput.click();
+      return;
+    }
+  }
+
   const remarks = prompt("Optional remarks for this decision (leave blank to skip):", "") || "";
-  callAppsScript('evaluateApplication', [session.token, schoolId, decision, remarks])
+  submitEvaluate(schoolId, decision, remarks, null, saveBtn);
+}
+
+function submitEvaluate(schoolId, decision, remarks, endorsementFile, saveBtn) {
+  const originalLabel = saveBtn ? saveBtn.textContent : "";
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = endorsementFile ? "Uploading…" : "Saving…"; }
+  callAppsScript('evaluateApplication', [session.token, schoolId, decision, remarks, endorsementFile])
+    .then(function (res) {
+      if (!res.success) {
+        alert(res.message);
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalLabel; }
+        return;
+      }
+      loadRecords();
+    })
+    .catch(function (err) {
+      alert("Error: " + err.message);
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalLabel; }
+    });
+}
+
+function doReviewerReturn(schoolId) {
+  const remarks = (prompt("Please explain what needs to be corrected (required):", "") || "").trim();
+  if (!remarks) { alert("Please explain what needs to be corrected before returning this application."); return; }
+  callAppsScript('reviewerReturnApplication', [session.token, schoolId, remarks])
     .then(function (res) {
       if (!res.success) { alert(res.message); return; }
       loadRecords();
@@ -1502,7 +1694,7 @@ function loadDocsModal() {
 // to embed directly into inline HTML event handlers).
 function renderDocsModal() {
   const body = document.getElementById("docsModalBody");
-  const canEvaluate = (session.role === "Admin" || session.role === "Evaluator");
+  const canEvaluate = (session.role === "Admin" || session.role === "Evaluator" || session.role === "Reviewer");
   const items = docsModalItems;
 
   if (!items.length) {
@@ -1783,7 +1975,8 @@ function statusBadgeClass(status) {
     "Pending": "Pending",
     "Endorsed to Region": "EndorsedToRegion",
     "On-Going Review": "OnGoingReview",
-    "For Compliance": "ForCompliance"
+    "For Compliance": "ForCompliance",
+    "Returned by Region": "ReturnedByRegion"
   };
   return map[status] || "Other";
 }
