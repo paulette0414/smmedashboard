@@ -1073,6 +1073,18 @@ function initApp() {
   loadDashboard();
 }
 
+// Display-only formatting for application type names shown in the
+// Application Form tab (type menu/grid, selected-type label, page title).
+// Strips the "PROCESSING SHEET ON THE " prefix for a shorter, cleaner label.
+// IMPORTANT: this is DISPLAY-ONLY — the underlying raw name (t.name /
+// selectedApplicationType) must always stay the full original string, since
+// that's what's used for saveSchool, getApplicationRequirements, and Sheet
+// storage/matching elsewhere.
+function formatAppTypeDisplay(name) {
+  name = (name || "").toString();
+  return name.replace(/^PROCESSING SHEET ON THE\s+/, "");
+}
+
 function buildTypeMenus() {
   const submenu = document.getElementById('applicationTypeSubmenu');
   const grid    = document.getElementById('typeSelectGrid');
@@ -1082,14 +1094,14 @@ function buildTypeMenus() {
   APPLICATION_TYPES.forEach(function (t, idx) {
     const li = document.createElement('li');
     li.className   = 'submenu-item';
-    li.textContent = t.name;
+    li.textContent = formatAppTypeDisplay(t.name);
     li.id          = 'submenuItem_' + idx;
     li.onclick     = function (e) { e.stopPropagation(); selectApplicationType(t.name); };
     submenu.appendChild(li);
 
     const card = document.createElement('div');
     card.className   = 'type-card';
-    card.textContent = t.name;
+    card.textContent = formatAppTypeDisplay(t.name);
     card.onclick     = function () { selectApplicationType(t.name); };
     grid.appendChild(card);
   });
@@ -1119,7 +1131,7 @@ function showTab(name) {
     document.getElementById('typeSelectScreen').style.display     = selectedApplicationType ? 'none'  : 'block';
     document.getElementById('applicationFormScreen').style.display = selectedApplicationType ? 'block' : 'none';
     if (selectedApplicationType) {
-      document.getElementById('pageTitle').innerHTML = '<span class="dot"></span>' + selectedApplicationType;
+      document.getElementById('pageTitle').innerHTML = '<span class="dot"></span>' + formatAppTypeDisplay(selectedApplicationType);
       document.getElementById('pageSub').textContent  = "Application Form";
     } else {
       document.getElementById('pageTitle').innerHTML = '<span class="dot"></span>' + TAB_TITLES.form.title;
@@ -1150,7 +1162,7 @@ function toggleFormMenu() {
 
 function selectApplicationType(name) {
   selectedApplicationType = name;
-  document.getElementById('selectedTypeLabel').textContent = name;
+  document.getElementById('selectedTypeLabel').textContent = formatAppTypeDisplay(name);
 
   document.querySelectorAll('.submenu-item').forEach(function (el) { el.classList.remove('active'); });
   APPLICATION_TYPES.forEach(function (t, idx) {

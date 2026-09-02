@@ -274,3 +274,21 @@ Tinanong mo kung puwedeng "i-secure" ang code para hindi ito ma-view ng mga user
 - Kasama rin sa zip ang `build-tools/build-obfuscate.js` — ito ang script na gumagawa ng build mula sa source. Hindi mo na kailangang patakbuhin ito mismo — ako na ang bahalang mag-regenerate ng bagong obfuscated build sa tuwing may bagong hihilingin kang ayusin, at ipapadala ko rin palagi ang parehong `index.source.html` at `index.html` para may updated copy ka ng dalawa.
 
 **Paano i-test:** buksan ang deployed site, subukan mag-right-click sa labas ng anumang text field — dapat walang lumalabas na menu. Subukan pindutin ang F12 o Ctrl+Shift+I — dapat walang bumukas na DevTools panel. Subukan mag-right-click PASTE sa loob ng isang text field (hal. School ID) — dapat gumagana pa rin ito normal.
+
+## Bahagi 18 — Pag-clean ng display text sa Application Form tab
+
+Dalawang hiwalay na text cleanup ang ginawa dito, pareho display-only (walang nabago sa aktwal na data na naka-save sa Sheet o ginagamit para sa paghahanap ng requirements):
+
+**(A) Tinanggal ang "PROCESSING SHEET ON THE" mula sa mga pangalan ng application type — sa Application Form tab lang.** Dati, ganito lumalabas ang mga application type sa dropdown menu, sa grid ng type-selection screen, sa "Selected Type" label, at sa pahina title kapag pumili ka: halimbawa, *"PROCESSING SHEET ON THE APPLICATION FOR ESTABLISHMENT OF NEW PRIVATE SCHOOL"*. Ngayon, awtomatikong tinatanggal na lang ang unahang bahagi na "PROCESSING SHEET ON THE " sa APAT na lugar na ito:
+- Ang submenu (dropdown list sa "Application Form" nav item).
+- Ang grid ng mga type-card sa type-selection screen.
+- Ang "Selected Type" label sa Application Form.
+- Ang page title kapag naka-pili ka na ng application type.
+
+Kaya lalabas na lang: *"APPLICATION FOR ESTABLISHMENT OF NEW PRIVATE SCHOOL"* (mas maikli at malinaw).
+
+**Mahalagang tandaan:** hindi ito nakaka-apekto sa **"Downloadable Forms"** tab (magkaibang listahan iyon, may sariling RO-QAD-F-XXX na pang-numero, at hindi nagsisimula sa "PROCESSING SHEET ON THE" kaya hindi rin ito talaga apektado). Hindi rin ito nakaka-apekto sa aktwal na value na naka-save/ipinapadala papuntang Sheet, `saveSchool`, o `getApplicationRequirements` — ang buong/orihinal na pangalan (kasama ang "PROCESSING SHEET ON THE") ang ginagamit pa rin doon sa likod ng eksena, dahil ito pa rin ang tamang key para sa paghahanap ng requirements at para tumugma sa mga existing na naka-save na record sa Sheet. Ang na-format lang ay ang PAGPAPAKITA sa screen — display-only na cosmetic change.
+
+**(B) Ni-clean up ang isang paulit-ulit na criteria item — "Curriculum Evaluation Sheet".** Sa Criteria & Required Documents table ng humigit-kumulang 20+ na application type, may isang criteria item na paulit-ulit lumalabas nang ganito (iba-iba lang ang numero sa unahan depende sa application type): *"8. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program"*. Tinanggal na ngayon ang numero sa unahan AT ang "Curriculum Evaluation Sheet — " na parte, kaya ang nalalabing text na lang ay: **"Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program"**. Ito ay nagbago sa lahat ng 22 lugar kung saan ito lumalabas sa `code.gs` — dahil ito mismo ang aktwal na criteria text (hindi lang display formatting), ito rin ang lalabas bilang criteria label sa "📄 Review" modal at sa MOV attachment tracking — walang epekto ito sa mga existing na naka-save nang MOV attachment dahil ang pagtutugma ay batay pa rin sa row position/criteria text na kasalukuyang nasa `VERIFIED_REQUIREMENTS`.
+
+**Paano i-test:** pumili ng kahit anong application type na may prefix na "PROCESSING SHEET ON THE" (hal. "Application for Establishment of New Private School") sa Application Form tab — dapat wala nang makikitang "PROCESSING SHEET ON THE" kahit saan sa menu, grid, label, o page title. Sa Criteria table naman, hanapin ang criteria tungkol sa Curriculum Evaluation Sheet — dapat wala nang numero sa unahan at wala nang "Curriculum Evaluation Sheet —", "Duly accomplished..." na lang mismo ang una sa text.

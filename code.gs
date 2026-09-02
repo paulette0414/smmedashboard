@@ -1577,7 +1577,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "8. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -1667,7 +1667,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "5. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -1775,7 +1775,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "8. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -1921,7 +1921,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "10. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -2023,7 +2023,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "5. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -2124,7 +2124,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "5. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -2258,7 +2258,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "9. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -2379,7 +2379,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "8. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -2515,7 +2515,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "9. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -2636,7 +2636,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "7. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -2720,7 +2720,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "4. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -2887,7 +2887,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "11. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -3082,7 +3082,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "10. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -3267,7 +3267,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "10. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -3426,7 +3426,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "11. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -3644,7 +3644,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "14. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -3801,7 +3801,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "9. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -4075,7 +4075,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "19. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -4211,7 +4211,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "10. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -4354,7 +4354,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "11. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -4488,7 +4488,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "10. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
@@ -4594,7 +4594,7 @@ const VERIFIED_REQUIREMENTS = {
       ]
     },
     {
-      "criteria": "7. Curriculum Evaluation Sheet — duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
+      "criteria": "Duly accomplished, showing findings and recommendations for the Curriculum, School Calendar, Class Program, and Teacher's Program",
       "requirements": [
         {
           "text": "A. Curriculum",
