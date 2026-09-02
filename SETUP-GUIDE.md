@@ -154,11 +154,11 @@ May pulang bilang na lalabas sa ibabaw ng 🔔 button kung may unread na notific
 | `logoutAccount` | Naka-login | Inaalis ang session |
 | `getMySession` | Naka-login | Ibinabalik ang role/pangalan/email, para hindi mawala ang session pag nag-refresh ng page |
 | `changePassword` | Naka-login | Palitan ang sariling password |
-| `getMySubmissions` | Naka-login | User: sariling submissions lang. Admin/Evaluator: lahat. Reviewer: yung mga "Endorsed to Region" lang |
+| `getMySubmissions` | Naka-login | User: sariling submissions lang. Admin/Evaluator: lahat. Reviewer: yung mga "Endorsed to Region" o "For Approval" lang (tingnan Bahagi 13) |
 | `listUsers` / `setUserStatus` | Admin lang | Tingnan/i-approve/i-disable ang mga account |
 | `createAdminAccount` | Admin lang | Gumawa ng dagdag na Admin account |
-| `evaluateApplication` | Evaluator/Admin lang | Mag-decide (Pending/Endorsed to Region/On-Going Review/For Compliance) + remarks sa BUONG application. Kailangan ng endorsement letter (`endorsementFile`) bago tanggapin ang "Endorsed to Region" kung wala pa itong naka-attach na letter |
-| `reviewerReturnApplication` | Reviewer lang | Ibalik sa "Returned by Region" ang isang application na "Endorsed to Region", may required na remarks |
+| `evaluateApplication` | Evaluator/Admin lang | Mag-decide (Pending/Endorsed to Region/On-Going Review/For Compliance) + remarks sa BUONG application. Kailangan ng isa o higit pang attachment (`attachmentFiles`, array na ngayon — tingnan Bahagi 13) bago tanggapin ang "Endorsed to Region" kung wala pa itong naka-attach na file |
+| `reviewerDecide` | Reviewer lang | Palitan ng "For Approval" / "Approved" / "Returned to Division" ang status ng isang application na "Endorsed to Region" (o "For Approval") — tingnan Bahagi 13. Pinalitan na nito ang lumang `reviewerReturnApplication` |
 | `getAttachmentReview` | Naka-login | Ibinabalik ang listahan ng lahat ng naka-attach na document + status/remarks nito (Admin/Evaluator/Reviewer: kahit anong application; User: sariling application lang) |
 | `reviewAttachment` | Evaluator/Admin/Reviewer | Markahan ang isang partikular na document na Valid/Invalid/Pending + remarks |
 | `reuploadAttachment` | May-ari ng application (User) o Admin | Palitan ang file ng isang partikular na document, ibabalik sa Pending ang status nito |
@@ -180,4 +180,27 @@ May pulang bilang na lalabas sa ibabaw ng 🔔 button kung may unread na notific
 
 **Paano i-test:** Mag-login bilang User at Reviewer (hiwalay na test accounts), tingnan kung tama ang bilang sa Dashboard nila (dapat mas kaunti/naka-filter kumpara sa Admin). Mag-lipat-lipat ng tabs papunta't pabalik sa Dashboard at tingnan kung nag-a-update ang mga numero. Mag-register ng bagong test account at tiyaking may lumalabas na pop-up.
 
-Ang lahat ng ibang function (submission, dashboard stats, file upload, requirements, atbp.) ay **hindi ginalaw** — eksakto pa rin ito sa orihinal mong code.gs.
+## Bahagi 13 — SHS Tracks Criteria, 3 bagong desisyon ng Reviewer, at updated na Evaluator attachment message
+
+**(A) Nalagyan na ng laman ang "Criteria & Required Documents" ng PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES.** Dating blangko ito. Napansin naming pareho pala ang official DepEd form code (**RO-QAD-F-009**) nito at ng "APPLICATION FOR ADDITIONAL TRACKS, STRANDS" (tingnan ang listahan ng Downloadable Forms) — dalawang magkaibang pangalan, iisang opisyal na form lang pala. Kaya sa halip na mag-imbento ng bagong Criteria/Required Documents content (delikado ito kung mali dahil regulatory content ito) o mag-iwan ng blangko, ginawa naming gamitin ng SHS Tracks entry ang eksaktong parehong mga Criteria/Required Documents/MOV entries ng "APPLICATION FOR ADDITIONAL TRACKS, STRANDS" — 11 criteria items, kasama ang lahat ng required documents at MOV nito. **Paalala:** wala kaming natanggap na file na dapat sanang gagamitin para dito — ito ang pinaka-makatwirang resolution na nahanap namin base sa umiiral na datos sa code.gs. Kung mayroon kang eksaktong Criteria/Required Documents na gusto mong ilagay dito na naiiba sa "APPLICATION FOR ADDITIONAL TRACKS, STRANDS", ipadala mo lang at papalitan namin ito.
+
+**(B) Bagong 3 desisyon ng Reviewer (Region), may required na attachment bawat isa.** Sa halip na iisang "↩️ Return to Division" button lang, ngayon ay may dropdown na ang Reviewer sa "Region Action" column, may tatlong opsyon:
+- **For Approval** — susunod na hakbang papunta sa approval, walang kinakailangang attachment.
+- **Approved** — final na approval ng Region. Kapag pinili ito at wala pang naka-attach na approved documents sa application, lalabas muna ang message box na **"Attach approved documents"** bago bubukas ang file picker (puwede nang mag-attach ng maraming file nang sabay-sabay).
+- **Returned to Division** — pinalitan nito ang lumang "Returned by Region" (parehong badge color/dashboard bucket pa rin ang gamit nito para hindi masira ang mga lumang record). Kapag pinili ito at wala pang naka-attach na findings/recommendation, lalabas ang message box na **"Attach findings and recommendation"** bago bubukas ang file picker.
+
+Katulad ng dati, kapag naka-attach na ang kinakailangang file sa isang application, hindi na ito hihingin uli sa susunod na pag-save ng parehong desisyon. Opsyonal na lang ang remarks sa lahat ng tatlong desisyon (dati, required ito sa "Return to Division" — relaxed na ito ngayon dahil ang required na attachment na mismo ang may dalang detalye). May bago ring dalawang column sa Google Sheet: **T (Approved Documents)** at **U (Findings and Recommendation)**.
+
+Mahalagang detalye: kapag pinili munang "For Approval" ang isang application, hindi ito nawawala sa listahan ng Reviewer — makikita pa rin nila ito (kasama ng mga bago pang "Endorsed to Region") para puwede pa rin nilang i-decide sa "Approved" o "Returned to Division" sa susunod. Pagkatapos ma-"Approved" o ma-"Returned to Division", saka lang ito aalis sa kanilang queue.
+
+**(C) Bagong message ng Evaluator kapag "Endorsed to Region".** Pinalitan na ang dating "please attached endorsement letter" ng mas kumpletong **"Attach Endorsement Letter and accomplished Processing Sheet"** — at puwede nang mag-attach ng maraming file nang sabay (hal. parehong Endorsement Letter at Processing Sheet) sa iisang pag-click ng file picker, hindi na isa-isang file lang.
+
+**Paano i-test:**
+1. Pumili ng application type na "PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES..." sa Application Form — dapat may laman na ang Criteria & Required Documents table.
+2. Bilang Evaluator, i-set ang isang application papuntang "Endorsed to Region" nang walang naka-attach — dapat lumabas ang bagong message box na "Attach Endorsement Letter and accomplished Processing Sheet", at pagkatapos i-OK, dapat puwede kang pumili ng maraming file sa file picker.
+3. Bilang Reviewer, buksan ang isang "Endorsed to Region" na application — dapat tatlo na ang laman ng dropdown (For Approval / Returned to Division / Approved).
+4. Piliin ang "Approved" nang wala pang naka-attach na approved documents — dapat lumabas ang "Attach approved documents" bago ang file picker. Piliin ang "Returned to Division" sa ibang application nang wala pang findings — dapat lumabas ang "Attach findings and recommendation".
+5. Piliin muna ang "For Approval" sa isang application — tiyaking hindi ito nawawala sa listahan ng Reviewer, at puwede pa rin itong i-set later papuntang "Approved" o "Returned to Division".
+6. Tingnan ang Dashboard — dapat may dalawa nang bagong scorecard: "For Approval" at "Approved", bukod pa sa "Returned to Division" (pinalitan ang label mula "Returned by Region").
+
+Ang lahat ng ibang function (submission, dashboard stats para sa Admin/Evaluator, requirements ng ibang application types, atbp.) ay **hindi ginalaw**.

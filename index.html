@@ -268,6 +268,8 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .badge.OnGoingReview{ background:var(--deped-blue); }
 .badge.ForCompliance{ background:var(--err); }
 .badge.ReturnedByRegion{ background:#7c3aed; }
+.badge.ForApproval{ background:#0ea5e9; }
+.badge.Approved{ background:#059669; }
 .badge.Other{ background:#64748b; }
 .records-empty{ padding:36px; text-align:center; color:#8b98b3; }
 
@@ -346,7 +348,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 
 /* ── Dashboard: scorecards ─────────────────────────────────────────────── */
 .stat-grid{
-  display:grid; grid-template-columns:repeat(6,1fr); gap:16px; margin-bottom:20px;
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px; margin-bottom:20px;
 }
 .stat-card{
   background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px;
@@ -360,6 +362,8 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .stat-card.ongoing{ border-top-color:var(--deped-blue); }
 .stat-card.compliance{ border-top-color:var(--err); }
 .stat-card.returned{ border-top-color:#7c3aed; }
+.stat-card.forapproval{ border-top-color:#0ea5e9; }
+.stat-card.approved{ border-top-color:#059669; }
 .stat-icon{ font-size:26px; }
 .stat-value{ font-size:32px; font-weight:800; color:var(--deped-blue); line-height:1; }
 .stat-card.pending .stat-value{ color:var(--warn); }
@@ -367,6 +371,8 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .stat-card.ongoing .stat-value{ color:var(--deped-blue); }
 .stat-card.compliance .stat-value{ color:var(--err); }
 .stat-card.returned .stat-value{ color:#7c3aed; }
+.stat-card.forapproval .stat-value{ color:#0ea5e9; }
+.stat-card.approved .stat-value{ color:#059669; }
 .stat-label{ font-size:12.5px; color:var(--muted); font-weight:600; }
 
 /* ── Dashboard: introduction text ──────────────────────────────────────── */
@@ -680,7 +686,17 @@ table.records tbody tr:hover{ background:#f4f8ff; }
           <div class="stat-card returned">
             <div class="stat-icon">↩️</div>
             <div class="stat-value" id="statReturned">–</div>
-            <div class="stat-label">Returned by Region</div>
+            <div class="stat-label">Returned to Division</div>
+          </div>
+          <div class="stat-card forapproval">
+            <div class="stat-icon">🗳️</div>
+            <div class="stat-value" id="statForApproval">–</div>
+            <div class="stat-label">For Approval</div>
+          </div>
+          <div class="stat-card approved">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value" id="statApproved">–</div>
+            <div class="stat-label">Approved</div>
           </div>
         </div>
 
@@ -846,19 +862,28 @@ function setAuthMessage(msg, cls) {
   el.className = cls || "";
 }
 
-// Popup version of the same feedback, for moments (like registration) that
-// need to be impossible to miss rather than a small line of text below the
-// form.
-function showInfoModal(title, message, kind) {
+// Popup version of the same feedback, for moments (like registration, or an
+// attachment reminder before a file picker opens) that need to be
+// impossible to miss rather than a small line of text below the form.
+// onClose (optional) runs right after the user dismisses it — used to chain
+// straight into opening a file picker, since that has to happen inside the
+// same click's call stack to count as a user gesture.
+let infoModalOnClose = null;
+
+function showInfoModal(title, message, kind, onClose) {
   document.getElementById('infoModalTitle').textContent = title;
   document.getElementById('infoModalMessage').textContent = message;
   document.getElementById('infoModalBox').className = 'info-modal' + (kind ? ' ' + kind : '');
   document.getElementById('infoModalIcon').textContent = kind === 'err' ? '⚠️' : '✅';
   document.getElementById('infoModalOverlay').hidden = false;
+  infoModalOnClose = (typeof onClose === 'function') ? onClose : null;
 }
 
 function closeInfoModal() {
   document.getElementById('infoModalOverlay').hidden = true;
+  const cb = infoModalOnClose;
+  infoModalOnClose = null;
+  if (cb) cb();
 }
 
 function doLogin() {
@@ -1431,7 +1456,7 @@ function showError(err) {
    here was removed — it scanned an entire Drive folder and re-shared every
    file on every single load, which was the main source of dashboard
    slowness. */
-const DASHBOARD_STAT_IDS = ['statTotal', 'statPending', 'statEndorsed', 'statOngoing', 'statCompliance', 'statReturned'];
+const DASHBOARD_STAT_IDS = ['statTotal', 'statPending', 'statEndorsed', 'statOngoing', 'statCompliance', 'statReturned', 'statForApproval', 'statApproved'];
 
 function loadDashboard() {
   DASHBOARD_STAT_IDS.forEach(function (id) {
@@ -1446,6 +1471,8 @@ function loadDashboard() {
       document.getElementById('statOngoing').textContent    = stats.onGoingReview;
       document.getElementById('statCompliance').textContent = stats.forCompliance;
       document.getElementById('statReturned').textContent   = stats.returnedByRegion;
+      document.getElementById('statForApproval').textContent = stats.forApproval;
+      document.getElementById('statApproved').textContent   = stats.approved;
     })
     .catch(function () {
       DASHBOARD_STAT_IDS.forEach(function (id) {
@@ -1525,12 +1552,18 @@ function renderRecords() {
           '<option value="For Compliance"' + (r.status === 'For Compliance' ? ' selected' : '') + '>For Compliance</option>' +
         '</select>' +
         '<button type="button" onclick="doEvaluate(\'' + safeId + '\')">Save</button>' +
-        '<input type="file" id="endorseFile_' + safeId + '" style="display:none;">' +
+        '<input type="file" id="endorseFile_' + safeId + '" multiple style="display:none;">' +
       '</td>';
     }
     if (isReviewer) {
       html += '<td class="eval-cell">' +
-        '<button type="button" onclick="doReviewerReturn(\'' + safeId + '\')">↩️ Return to Division</button>' +
+        '<select id="reviewerDecision_' + safeId + '">' +
+          '<option value="For Approval"' + (r.status === 'For Approval' ? ' selected' : '') + '>For Approval</option>' +
+          '<option value="Returned to Division"' + (r.status === 'Returned to Division' || r.status === 'Returned by Region' ? ' selected' : '') + '>Returned to Division</option>' +
+          '<option value="Approved"' + (r.status === 'Approved' ? ' selected' : '') + '>Approved</option>' +
+        '</select>' +
+        '<button type="button" onclick="doReviewerDecide(\'' + safeId + '\')">Save</button>' +
+        '<input type="file" id="reviewerFile_' + safeId + '" multiple style="display:none;">' +
       '</td>';
     }
     html += '</tr>';
@@ -1538,6 +1571,22 @@ function renderRecords() {
 
   html += '</tbody></table></div>';
   container.innerHTML = html;
+}
+
+/* Reads a FileList/array of File objects into [{fileName, base64Data}, ...]
+   via FileReader, resolving once every file has been read (order preserved). */
+function readFilesAsBase64(fileList) {
+  const files = Array.prototype.slice.call(fileList || []);
+  return Promise.all(files.map(function (file) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function () {
+        resolve({ fileName: file.name, base64Data: reader.result.split(',')[1] });
+      };
+      reader.onerror = function () { reject(new Error("Could not read file: " + file.name)); };
+      reader.readAsDataURL(file);
+    });
+  }));
 }
 
 function doEvaluate(schoolId) {
@@ -1551,20 +1600,17 @@ function doEvaluate(schoolId) {
     const fileInput = document.getElementById('endorseFile_' + schoolId);
 
     if (!alreadyHasLetter) {
-      alert("Please attached endorsement letter.\n\nA file picker will now open — please select the endorsement letter to attach before this application can be endorsed to Region.");
-      fileInput.value = "";
-      fileInput.onchange = function () {
-        const file = fileInput.files && fileInput.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function () {
-          const base64Data = reader.result.split(',')[1];
-          const remarks = prompt("Optional remarks for this decision (leave blank to skip):", "") || "";
-          submitEvaluate(schoolId, decision, remarks, { fileName: file.name, base64Data: base64Data }, saveBtn);
+      showInfoModal("Attachment Required", "Attach Endorsement Letter and accomplished Processing Sheet", "ok", function () {
+        fileInput.value = "";
+        fileInput.onchange = function () {
+          if (!fileInput.files || fileInput.files.length === 0) return;
+          readFilesAsBase64(fileInput.files).then(function (attachmentFiles) {
+            const remarks = prompt("Optional remarks for this decision (leave blank to skip):", "") || "";
+            submitEvaluate(schoolId, decision, remarks, attachmentFiles, saveBtn);
+          }).catch(function (err) { alert("Error: " + err.message); });
         };
-        reader.readAsDataURL(file);
-      };
-      fileInput.click();
+        fileInput.click();
+      });
       return;
     }
   }
@@ -1573,10 +1619,10 @@ function doEvaluate(schoolId) {
   submitEvaluate(schoolId, decision, remarks, null, saveBtn);
 }
 
-function submitEvaluate(schoolId, decision, remarks, endorsementFile, saveBtn) {
+function submitEvaluate(schoolId, decision, remarks, attachmentFiles, saveBtn) {
   const originalLabel = saveBtn ? saveBtn.textContent : "";
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = endorsementFile ? "Uploading…" : "Saving…"; }
-  callAppsScript('evaluateApplication', [session.token, schoolId, decision, remarks, endorsementFile])
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = attachmentFiles ? "Uploading…" : "Saving…"; }
+  callAppsScript('evaluateApplication', [session.token, schoolId, decision, remarks, attachmentFiles])
     .then(function (res) {
       if (!res.success) {
         alert(res.message);
@@ -1591,15 +1637,59 @@ function submitEvaluate(schoolId, decision, remarks, endorsementFile, saveBtn) {
     });
 }
 
-function doReviewerReturn(schoolId) {
-  const remarks = (prompt("Please explain what needs to be corrected (required):", "") || "").trim();
-  if (!remarks) { alert("Please explain what needs to be corrected before returning this application."); return; }
-  callAppsScript('reviewerReturnApplication', [session.token, schoolId, remarks])
+const REVIEWER_DECISION_MESSAGES = {
+  "Approved": "Attach approved documents",
+  "Returned to Division": "Attach findings and recommendation"
+};
+
+function doReviewerDecide(schoolId) {
+  const select = document.getElementById('reviewerDecision_' + schoolId);
+  const decision = select.value;
+  const saveBtn = select.parentElement.querySelector('button');
+  const record = allRecords.find(function (r) { return (r.schoolId || "") === schoolId; });
+  const fileInput = document.getElementById('reviewerFile_' + schoolId);
+
+  if (decision === "Approved" || decision === "Returned to Division") {
+    const alreadyHasFile = decision === "Approved"
+      ? !!(record && record.approvedDocumentsUrl)
+      : !!(record && record.findingsRecommendationUrl);
+
+    if (!alreadyHasFile) {
+      showInfoModal("Attachment Required", REVIEWER_DECISION_MESSAGES[decision], "ok", function () {
+        fileInput.value = "";
+        fileInput.onchange = function () {
+          if (!fileInput.files || fileInput.files.length === 0) return;
+          readFilesAsBase64(fileInput.files).then(function (attachmentFiles) {
+            const remarks = prompt("Optional remarks for this decision (leave blank to skip):", "") || "";
+            submitReviewerDecide(schoolId, decision, remarks, attachmentFiles, saveBtn);
+          }).catch(function (err) { alert("Error: " + err.message); });
+        };
+        fileInput.click();
+      });
+      return;
+    }
+  }
+
+  const remarks = prompt("Optional remarks for this decision (leave blank to skip):", "") || "";
+  submitReviewerDecide(schoolId, decision, remarks, null, saveBtn);
+}
+
+function submitReviewerDecide(schoolId, decision, remarks, attachmentFiles, saveBtn) {
+  const originalLabel = saveBtn ? saveBtn.textContent : "";
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = attachmentFiles ? "Uploading…" : "Saving…"; }
+  callAppsScript('reviewerDecide', [session.token, schoolId, decision, remarks, attachmentFiles])
     .then(function (res) {
-      if (!res.success) { alert(res.message); return; }
+      if (!res.success) {
+        alert(res.message);
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalLabel; }
+        return;
+      }
       loadRecords();
     })
-    .catch(function (err) { alert("Error: " + err.message); });
+    .catch(function (err) {
+      alert("Error: " + err.message);
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalLabel; }
+    });
 }
 
 /* ── Per-document review modal (new) ─────────────────────────────────────
@@ -1936,7 +2026,10 @@ function statusBadgeClass(status) {
     "Endorsed to Region": "EndorsedToRegion",
     "On-Going Review": "OnGoingReview",
     "For Compliance": "ForCompliance",
-    "Returned by Region": "ReturnedByRegion"
+    "Returned by Region": "ReturnedByRegion",
+    "Returned to Division": "ReturnedByRegion",
+    "For Approval": "ForApproval",
+    "Approved": "Approved"
   };
   return map[status] || "Other";
 }

@@ -62,7 +62,7 @@ const API_WHITELIST = {
   reviewAttachment: reviewAttachment,
   reuploadAttachment: reuploadAttachment,
   // ── Reviewer (Region)-only (new; checks the session role itself) ──────────
-  reviewerReturnApplication: reviewerReturnApplication,
+  reviewerDecide: reviewerDecide,
   // ── In-app notifications (new; checks the session token itself) ───────────
   getMyNotifications: getMyNotifications,
   markNotificationRead: markNotificationRead,
@@ -187,14 +187,23 @@ function generateApplicationCode() {
 //                          attached a MOV to (formatted server-side by
 //                          formatMovAttachments_ from the JSON the client sends)
 //  Q(17) Evaluation Remarks ← timestamped remarks log written by
-//                          evaluateApplication()/reviewerReturnApplication();
+//                          evaluateApplication()/reviewerDecide();
 //                          header lazily created on first use
 //  R(18) MOV Review Data ← JSON array, per-attachment Valid/Invalid review
 //                          state (see MOV_REVIEW_COL section below)
-//  S(19) Endorsement Letter ← Drive link to the letter uploaded when an
+//  S(19) Endorsement Letter / Processing Sheet ← Drive links (multi-line
+//                          list, see formatAttachmentList_) uploaded when an
 //                          Evaluator/Admin sets status to "Endorsed to
 //                          Region" (required the first time; header lazily
 //                          created on first use — see evaluateApplication())
+//  T(20) Approved Documents ← Drive links (multi-line list) uploaded when a
+//                          Reviewer sets status to "Approved" (required the
+//                          first time; header lazily created on first use —
+//                          see reviewerDecide())
+//  U(21) Findings and Recommendation ← Drive links (multi-line list)
+//                          uploaded when a Reviewer sets status to "Returned
+//                          to Division" (required the first time; header
+//                          lazily created on first use — see reviewerDecide())
 // ── formatMovAttachments_ ──────────────────────────────────────────────────────
 // Converts the JSON string sent by the client (array of
 // {criteria, requirement, fileUrl, fileName}) into a human-readable, multi-line
@@ -611,17 +620,24 @@ function extractPreviewUrl(driveUrl) {
 // Dashboard scope depends on who is asking: Admin/Evaluator see the whole
 // division-wide picture (unchanged); a User only sees counts for their own
 // submissions (matched by the email on their account, same rule as
-// getMySubmissions()); a Reviewer only sees counts for applications
-// currently in their own "Endorsed to Region" queue (same filter as their
-// getMySubmissions()) — they never worked the other statuses, so those stay
-// at zero for them rather than showing the whole division's numbers.
+// getMySubmissions()); a Reviewer sees counts for every application that has
+// ever reached their desk — currently "Endorsed to Region" (their active
+// queue) plus anything they've already decided on ("For Approval",
+// "Returned to Division", "Approved") — everything else stays at zero for
+// them rather than showing the whole division's numbers.
+//
+// NOTE on "Returned by Region": that was this status's original name before
+// the Reviewer decision set grew to three options and it was renamed
+// "Returned to Division" to match. Old rows already carrying the previous
+// label still count here under the same returnedByRegion bucket so nothing
+// written before this rename silently disappears from the Dashboard.
 function getDashboardStats(token) {
   const session = getSession_(token);
   const ss    = SpreadsheetApp.openById("1Yc-DDDU8muIS5HR0OWoLclUnK6RGPrcVe_ydYlgWOYI");
   const sheet = ss.getSheetByName("SchoolData");
   const lastRow = sheet.getLastRow();
 
-  const stats = { total: 0, pending: 0, endorsedToRegion: 0, onGoingReview: 0, forCompliance: 0, returnedByRegion: 0 };
+  const stats = { total: 0, pending: 0, endorsedToRegion: 0, onGoingReview: 0, forCompliance: 0, returnedByRegion: 0, forApproval: 0, approved: 0 };
   if (lastRow < 2) return stats;
 
   const idCol     = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
@@ -631,6 +647,7 @@ function getDashboardStats(token) {
   const isReviewer = session && session.role === "Reviewer";
   const emailCol   = isUser ? sheet.getRange(2, 12, lastRow - 1, 1).getValues().flat() : null;
   const myEmail    = isUser ? (session.email || "").toString().trim().toLowerCase() : "";
+  const REVIEWER_RELEVANT_STATUSES = ["Endorsed to Region", "For Approval", "Returned to Division", "Returned by Region", "Approved"];
 
   for (let i = 0; i < idCol.length; i++) {
     if (idCol[i] === "" || idCol[i] === null || idCol[i] === undefined) continue;
@@ -640,7 +657,7 @@ function getDashboardStats(token) {
       const rowEmail = (emailCol[i] || "").toString().trim().toLowerCase();
       if (!myEmail || rowEmail !== myEmail) continue;
     } else if (isReviewer) {
-      if (status !== "Endorsed to Region") continue;
+      if (REVIEWER_RELEVANT_STATUSES.indexOf(status) === -1) continue;
     }
     // Admin/Evaluator (or no/invalid session): unfiltered, division-wide.
 
@@ -648,7 +665,9 @@ function getDashboardStats(token) {
     if (status === "Endorsed to Region") stats.endorsedToRegion++;
     else if (status === "On-Going Review") stats.onGoingReview++;
     else if (status === "For Compliance") stats.forCompliance++;
-    else if (status === "Returned by Region") stats.returnedByRegion++;
+    else if (status === "Returned to Division" || status === "Returned by Region") stats.returnedByRegion++;
+    else if (status === "For Approval") stats.forApproval++;
+    else if (status === "Approved") stats.approved++;
     else stats.pending++;
   }
   return stats;
@@ -666,7 +685,7 @@ function getAllSubmissions() {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  const lastCol = Math.max(sheet.getLastColumn(), 19);
+  const lastCol = Math.max(sheet.getLastColumn(), 21);
   const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
   const tz = Session.getScriptTimeZone();
 
@@ -691,7 +710,9 @@ function getAllSubmissions() {
         dateSubmitted:       dateStr,
         status:              row[13] || "Pending",
         applicationCode:     row[14] || "",
-        endorsementLetterUrl: row[18] || "" // col S (19) — set by evaluateApplication when status becomes "Endorsed to Region"
+        endorsementLetterUrl: row[18] || "", // col S (19) — set by evaluateApplication when status becomes "Endorsed to Region"
+        approvedDocumentsUrl: row[19] || "", // col T (20) — set by reviewerDecide() when decision is "Approved"
+        findingsRecommendationUrl: row[20] || "" // col U (21) — set by reviewerDecide() when decision is "Returned to Division"
       };
     });
 }
@@ -848,8 +869,8 @@ function getMySession(token) {
 // on their account, so applicants should submit using that same email).
 // Admin/Evaluator get the full list, same as getAllSubmissions(). Reviewer
 // (Region) only sees applications currently "Endorsed to Region" — that is
-// their review queue; once they act on one (see reviewerReturnApplication),
-// it moves to a different status and drops out of this list on its own.
+// their review queue; once they act on one (see reviewerDecide()), it moves
+// to a different status and drops out of this list on its own.
 function getMySubmissions(token) {
   const session = getSession_(token);
   if (!session) return { success: false, message: "Session expired. Please log in again." };
@@ -859,7 +880,11 @@ function getMySubmissions(token) {
     return { success: true, submissions: all };
   }
   if (session.role === "Reviewer") {
-    return { success: true, submissions: all.filter(function (r) { return r.status === "Endorsed to Region"; }) };
+    // Reviewer's queue: applications they can still act on (see
+    // REVIEWER_DECIDABLE_STATUSES_ / reviewerDecide()) — includes "For
+    // Approval" so an application they queued for approval doesn't vanish
+    // from their table before they mark it Approved/Returned to Division.
+    return { success: true, submissions: all.filter(function (r) { return REVIEWER_DECIDABLE_STATUSES_.indexOf(r.status) !== -1; }) };
   }
 
   const usersSheet = getUsersSheet_();
@@ -952,17 +977,46 @@ function changePassword(token, oldPassword, newPassword) {
   return { success: true, message: "Password changed successfully." };
 }
 
+// ── uploadMultipleFilesToDrive_ ─────────────────────────────────────────────
+// Uploads each { fileName, base64Data } in `files` via uploadFileToDrive(),
+// stopping at the first failure. Returns { success, fileList: [{fileName,
+// fileUrl}] } on success — used by any action that can require more than one
+// attachment at once (e.g. "Endorsement Letter AND accomplished Processing
+// Sheet").
+function uploadMultipleFilesToDrive_(files, schoolId, applicationCode) {
+  const fileList = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (!f || !f.fileName || !f.base64Data) continue;
+    const result = uploadFileToDrive(f.fileName, f.base64Data, schoolId, applicationCode);
+    if (!result.success) return { success: false, message: result.message };
+    fileList.push({ fileName: result.fileName, fileUrl: result.fileUrl });
+  }
+  if (fileList.length === 0) return { success: false, message: "No valid files were provided." };
+  return { success: true, fileList: fileList };
+}
+
+// ── formatAttachmentList_ ────────────────────────────────────────────────────
+// Turns [{fileName, fileUrl}] into the same numbered, clickable-link text
+// block style used elsewhere in this sheet (see formatMovAttachments_) so it
+// reads clearly when the cell is opened directly in Google Sheets.
+function formatAttachmentList_(fileList) {
+  return fileList.map(function (f, idx) {
+    return (idx + 1) + ". " + f.fileName + "\n   Link: " + f.fileUrl;
+  }).join("\n\n");
+}
+
 // ── Evaluator/Admin-only: decide Endorsed to Region / On-Going Review /
 // For Compliance (or reset to Pending), with an optional remarks note,
 // logged in a new "Evaluation Remarks" column (Q) so the original
 // 16-column SchoolData layout is undisturbed.
 //
-// endorsementFile is only used (and required) when decision is "Endorsed to
-// Region": { fileName, base64Data } for a freshly-attached endorsement
-// letter. If that application already has one on file from a previous save,
-// it's fine to omit endorsementFile on a later resave (e.g. editing remarks
-// only) — see the existingLetter check below.
-function evaluateApplication(token, schoolId, decision, remarks, endorsementFile) {
+// attachmentFiles is only used (and required) when decision is "Endorsed to
+// Region": an array of { fileName, base64Data } — the Endorsement Letter and
+// accomplished Processing Sheet. If that application already has files on
+// record from a previous save, it's fine to omit attachmentFiles on a later
+// resave (e.g. editing remarks only) — see the existingFiles check below.
+function evaluateApplication(token, schoolId, decision, remarks, attachmentFiles) {
   const session = getSession_(token);
   if (!session || (session.role !== "Evaluator" && session.role !== "Admin")) {
     return { success: false, message: "Access denied." };
@@ -976,15 +1030,16 @@ function evaluateApplication(token, schoolId, decision, remarks, endorsementFile
   if (!found) return { success: false, message: "Application not found." };
 
   if (decision === "Endorsed to Region") {
-    const existingLetter = (found.sheet.getRange(found.rowIndex1based, 19).getValue() || "").toString().trim();
-    if (!existingLetter && !(endorsementFile && endorsementFile.fileName && endorsementFile.base64Data)) {
-      return { success: false, message: "Please attach the endorsement letter before endorsing this application to Region." };
+    const existingFiles = (found.sheet.getRange(found.rowIndex1based, 19).getValue() || "").toString().trim();
+    const files = Array.isArray(attachmentFiles) ? attachmentFiles.filter(function (f) { return f && f.fileName && f.base64Data; }) : [];
+    if (!existingFiles && files.length === 0) {
+      return { success: false, message: "Please attach the Endorsement Letter and accomplished Processing Sheet before endorsing this application to Region." };
     }
-    if (endorsementFile && endorsementFile.fileName && endorsementFile.base64Data) {
-      const uploadResult = uploadFileToDrive(endorsementFile.fileName, endorsementFile.base64Data, schoolId, found.applicationCode);
-      if (!uploadResult.success) return { success: false, message: "Endorsement letter upload failed: " + uploadResult.message };
-      if (!found.sheet.getRange(1, 19).getValue()) found.sheet.getRange(1, 19).setValue("Endorsement Letter");
-      found.sheet.getRange(found.rowIndex1based, 19).setValue(uploadResult.fileUrl);
+    if (files.length > 0) {
+      const uploadResult = uploadMultipleFilesToDrive_(files, schoolId, found.applicationCode);
+      if (!uploadResult.success) return { success: false, message: "Attachment upload failed: " + uploadResult.message };
+      if (!found.sheet.getRange(1, 19).getValue()) found.sheet.getRange(1, 19).setValue("Endorsement Letter / Processing Sheet");
+      found.sheet.getRange(found.rowIndex1based, 19).setValue(formatAttachmentList_(uploadResult.fileList));
     }
   }
 
@@ -1009,43 +1064,97 @@ function evaluateApplication(token, schoolId, decision, remarks, endorsementFile
   return { success: true, message: message };
 }
 
-// ── Reviewer (Region)-only: send an "Endorsed to Region" application back to
-// the Division (any Admin or Evaluator) when its MOVs are incomplete or
-// incorrect. Deliberately a separate function from evaluateApplication — a
-// Reviewer's only allowed transition is Endorsed to Region -> Returned by
-// Region, nothing else; they cannot set any of the other statuses.
-function reviewerReturnApplication(token, schoolId, remarks) {
+// ── Reviewer (Region)-only: decide the outcome of an "Endorsed to Region"
+// application. Exactly three decisions are theirs to make:
+//   "For Approval"        — moves it along, no attachment required.
+//   "Returned to Division" — sends it back to the Division (any Admin or
+//                            Evaluator) because MOVs are incomplete or
+//                            incorrect; requires an attached Findings and
+//                            Recommendation document the first time (a
+//                            resave with no new file is fine once one is
+//                            already on record — see the existingFiles
+//                            check below).
+//   "Approved"             — final Regional approval; requires attached
+//                            Approved Documents, same first-time-only rule.
+// A Reviewer can decide on an application once it's "Endorsed to Region",
+// and can keep deciding on it while it sits at "For Approval" — that status
+// is an interim queued-for-approval marking, not a dead end, so the Reviewer
+// can still move it on to "Approved" or "Returned to Division" afterward.
+// Once it reaches "Approved" or "Returned to Division" it has left the
+// Reviewer's queue for good (this mirrors the old reviewerReturnApplication(),
+// now folded into one function since all three decisions share the same
+// preconditions and notification pattern).
+var REVIEWER_DECIDABLE_STATUSES_ = ["Endorsed to Region", "For Approval"];
+function reviewerDecide(token, schoolId, decision, remarks, attachmentFiles) {
   const session = getSession_(token);
   if (!session || session.role !== "Reviewer") {
     return { success: false, message: "Access denied." };
   }
-  remarks = (remarks || "").toString().trim();
-  if (!remarks) {
-    return { success: false, message: "Please explain what needs to be corrected before returning this application." };
+  if (decision !== "For Approval" && decision !== "Returned to Division" && decision !== "Approved") {
+    return { success: false, message: "Invalid decision." };
   }
 
   const found = findSchoolRow_(schoolId);
   if (!found) return { success: false, message: "Application not found." };
 
   const currentStatus = (found.sheet.getRange(found.rowIndex1based, 14).getValue() || "").toString().trim();
-  if (currentStatus !== "Endorsed to Region") {
-    return { success: false, message: "Only applications currently 'Endorsed to Region' can be returned." };
+  if (REVIEWER_DECIDABLE_STATUSES_.indexOf(currentStatus) === -1) {
+    return { success: false, message: "Only applications currently 'Endorsed to Region' or 'For Approval' can be decided on by Region." };
   }
 
-  const message = updateStatus(schoolId, "Returned by Region");
+  const files = Array.isArray(attachmentFiles) ? attachmentFiles.filter(function (f) { return f && f.fileName && f.base64Data; }) : [];
 
-  if (!found.sheet.getRange(1, 17).getValue()) found.sheet.getRange(1, 17).setValue("Evaluation Remarks");
-  const stamp = "[" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm") +
-    " - " + (session.fullName || session.username) + ", Reviewer]: " + remarks;
-  found.sheet.getRange(found.rowIndex1based, 17).setValue(stamp);
+  if (decision === "Approved") {
+    const existingFiles = (found.sheet.getRange(found.rowIndex1based, 20).getValue() || "").toString().trim();
+    if (!existingFiles && files.length === 0) {
+      return { success: false, message: "Please attach the approved documents before marking this application Approved." };
+    }
+    if (files.length > 0) {
+      const uploadResult = uploadMultipleFilesToDrive_(files, schoolId, found.applicationCode);
+      if (!uploadResult.success) return { success: false, message: "Attachment upload failed: " + uploadResult.message };
+      if (!found.sheet.getRange(1, 20).getValue()) found.sheet.getRange(1, 20).setValue("Approved Documents");
+      found.sheet.getRange(found.rowIndex1based, 20).setValue(formatAttachmentList_(uploadResult.fileList));
+    }
+  } else if (decision === "Returned to Division") {
+    const existingFiles = (found.sheet.getRange(found.rowIndex1based, 21).getValue() || "").toString().trim();
+    if (!existingFiles && files.length === 0) {
+      return { success: false, message: "Please attach the findings and recommendation before returning this application to the Division." };
+    }
+    if (files.length > 0) {
+      const uploadResult = uploadMultipleFilesToDrive_(files, schoolId, found.applicationCode);
+      if (!uploadResult.success) return { success: false, message: "Attachment upload failed: " + uploadResult.message };
+      if (!found.sheet.getRange(1, 21).getValue()) found.sheet.getRange(1, 21).setValue("Findings and Recommendation");
+      found.sheet.getRange(found.rowIndex1based, 21).setValue(formatAttachmentList_(uploadResult.fileList));
+    }
+  }
 
-  // Alert the Division side — nobody is individually "assigned" to an
-  // application in this system, so broadcast to every Admin and Evaluator
-  // account rather than trying to guess which one should see it.
-  createNotification_(null, "Admin",
-    "Region returned the application " + (found.applicationCode || schoolId) + ": " + remarks, schoolId);
-  createNotification_(null, "Evaluator",
-    "Region returned the application " + (found.applicationCode || schoolId) + ": " + remarks, schoolId);
+  const message = updateStatus(schoolId, decision);
+
+  remarks = (remarks || "").toString().trim();
+  if (remarks) {
+    if (!found.sheet.getRange(1, 17).getValue()) found.sheet.getRange(1, 17).setValue("Evaluation Remarks");
+    const stamp = "[" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm") +
+      " - " + (session.fullName || session.username) + ", Reviewer]: " + remarks;
+    found.sheet.getRange(found.rowIndex1based, 17).setValue(stamp);
+  }
+
+  // Alert the Division side on a return — nobody is individually "assigned"
+  // to an application in this system, so broadcast to every Admin and
+  // Evaluator account rather than trying to guess which one should see it.
+  if (decision === "Returned to Division") {
+    createNotification_(null, "Admin",
+      "Region returned the application " + (found.applicationCode || schoolId) + " to the Division." + (remarks ? " " + remarks : ""), schoolId);
+    createNotification_(null, "Evaluator",
+      "Region returned the application " + (found.applicationCode || schoolId) + " to the Division." + (remarks ? " " + remarks : ""), schoolId);
+  }
+
+  // Let the applicant know too, same as evaluateApplication.
+  const applicantUsername = findUsernameByEmail_(found.ownerEmail);
+  if (applicantUsername) {
+    createNotification_(applicantUsername, null,
+      "The status of your application " + (found.applicationCode || schoolId) + " has been updated to: " + decision + ".",
+      schoolId);
+  }
 
   return { success: true, message: message };
 }
@@ -1209,7 +1318,7 @@ function getAttachmentReview(token, schoolId) {
 // to Pending) with optional remarks, identified by its criteria label
 // (stable per application type — see mergeMovReviewData_). Reviewer needs
 // this so they can flag a missing/incorrect MOV before returning the whole
-// application (see reviewerReturnApplication).
+// application to the Division (see reviewerDecide()).
 function reviewAttachment(token, schoolId, criteria, status, remarks) {
   const session = getSession_(token);
   if (!session || (session.role !== "Evaluator" && session.role !== "Admin" && session.role !== "Reviewer")) {
@@ -4473,6 +4582,18 @@ const VERIFIED_REQUIREMENTS = {
     }
   ]
 };
+
+// "PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER
+// OF ELECTIVES FOR PUBLIC AND PRIVATE SCHOOLS WITH EXISTING SENIOR HIGH
+// SCHOOL" and "APPLICATION FOR ADDITIONAL TRACKS, STRANDS" are the same
+// official DepEd form — both are labeled "RO-QAD-F-009" in the Downloadable
+// Forms list (see downloadableForms in index.html), just filed here under
+// two different application-type names (a short internal one used when
+// submitting, and the form's full official title). They share one Criteria/
+// Required Documents table rather than duplicating ~1300 lines of
+// hand-transcribed content that would otherwise drift out of sync.
+VERIFIED_REQUIREMENTS["PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES FOR PUBLIC AND PRIVATE SCHOOLS WITH EXISTING SENIOR HIGH SCHOOL"] =
+  VERIFIED_REQUIREMENTS["APPLICATION FOR ADDITIONAL TRACKS, STRANDS"];
 
 // ── getApplicationRequirements ────────────────────────────────────────────────
 // Given an Application Type (sub-menu selection), returns its Criteria/Required
