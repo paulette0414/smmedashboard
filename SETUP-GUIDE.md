@@ -157,7 +157,8 @@ May pulang bilang na lalabas sa ibabaw ng 🔔 button kung may unread na notific
 | `getMySubmissions` | Naka-login | User: sariling submissions lang. Admin/Evaluator: lahat. Reviewer: yung mga "Endorsed to Region"/"For Approval" (puwede pang i-decide) PATI na yung mga "Approved"/"Returned to Division" na (decided na, read-only na lang — tingnan Bahagi 14) |
 | `listUsers` / `setUserStatus` | Admin lang | Tingnan/i-approve/i-disable ang mga account |
 | `createAdminAccount` | Admin lang | Gumawa ng dagdag na Admin account |
-| `evaluateApplication` | Evaluator/Admin lang | Mag-decide (Pending/Endorsed to Region/On-Going Review/For Compliance) + remarks sa BUONG application. Kailangan ng isa o higit pang attachment (`attachmentFiles`, array na ngayon — tingnan Bahagi 13) bago tanggapin ang "Endorsed to Region" kung wala pa itong naka-attach na file |
+| `saveSchool` | Naka-login (User) | Mag-submit ng bagong application o mag-update ng existing. Sa bagong submission, required na naka-attach ang MOV para sa BAWAT criteria row (kung may Criteria table ang application type) — tingnan Bahagi 16 |
+| `evaluateApplication` | Evaluator/Admin lang | Mag-decide (Pending/Endorsed to Region/On-Going Review/For Compliance) + remarks sa BUONG application. Para sa "Endorsed to Region": (1) required munang "Valid" na ang LAHAT ng naka-attach na MOV — tingnan Bahagi 16, (2) kailangan ng isa o higit pang attachment (`attachmentFiles`, array na ngayon — tingnan Bahagi 13) kung wala pa itong naka-attach na endorsement file |
 | `reviewerDecide` | Reviewer lang | Palitan ng "For Approval" / "Approved" / "Returned to Division" ang status ng isang application na "Endorsed to Region" (o "For Approval") — tingnan Bahagi 13. Pinalitan na nito ang lumang `reviewerReturnApplication` |
 | `getAttachmentReview` | Naka-login | Ibinabalik ang listahan ng lahat ng naka-attach na document + status/remarks nito (Admin/Evaluator/Reviewer: kahit anong application; User: sariling application lang) |
 | `reviewAttachment` | Evaluator/Admin/Reviewer | Markahan ang isang partikular na document na Valid/Invalid/Pending + remarks |
@@ -238,3 +239,19 @@ Ngayon:
 - Kung **may laman** ang column (may format na "1. filename" tapos "Link: url" sa susunod na linya), ibig sabihin naka-save na nang tama sa Sheet — ibig sabihin sa frontend side na ang dapat pang tingnan; sabihin mo lang sa akin at may isa pa akong isyu na na-ayos na (`schoolId` type-matching sa pagitan ng Sheet data at ng button click) na kasama na sa pinakabagong index.html na ipinadala.
 
 Kung nasubukan mo na ang lahat ng ito at wala pa ring lumalabas, ipadala mo lang sa akin: (a) anong role ang naka-login, (b) yung School ID ng application na sinusubukan mo, at (c) kung may laman ba talaga ang column S/T/U ng row na iyon sa Sheet — para masasabi ko kung saan talaga nangyayari ang problema.
+
+## Bahagi 16 — Required na ang MOV attachment bago makapag-submit, at required na Valid muna ang lahat bago maka-Endorse to Region
+
+**(A) Hindi na makakapag-submit ang User kung may kulang na MOV.** Dati, puwede pa ring i-submit ang isang bagong application kahit walang naka-attach na MOV sa alinmang criteria — optional lang ito. Ngayon:
+- Sa Application Form, hindi na maa-click ang **SUBMIT** button hangga't hindi pa naka-attach ng MOV ang lahat ng row sa "Criteria & Required Documents" table. May lalabas na malinaw na babala sa ilalim ng table na nagsasabi kung anong criteria pa ang kulang (real-time — nawawala ito habang inaattach mo isa-isa ang mga MOV).
+- Kahit sino pa ang mag-attempt (halimbawa, kung may direktang tumatawag sa backend nang hindi dumadaan sa page), i-che-check din ito ng code.gs mismo bago tanggapin ang bagong submission — kaya hindi ito puwedeng balewalain.
+- Ang mga application type na WALANG interactive na Criteria table (yung mga nagpapakita na lang ng buong document sa preview — walang "📎 Attach MOV" na button), ay EXEMPTED dito dahil wala talagang paraan mag-attach doon.
+- Ito ay para sa BAGONG submission lang — hindi ito muling hinihingi sa pag-edit/resave ng existing application na naka-submit na (parehong lenient na approach na ginagamit na rin sa ibang parte ng system).
+
+**(B) Hindi na makakapag-"Endorse to Region" ang Evaluator/Admin kung may hindi pa Valid na MOV.** Dati, kahit hindi pa na-review (Pending o Invalid) ang mga MOV, puwede pa ring i-set ng Evaluator/Admin ang isang application papuntang "Endorsed to Region" (basta't may naka-attach na endorsement letter). Ngayon, bago pa man tingnan ang endorsement letter, che-check muna kung **LAHAT** ng naka-attach na MOV ng application ay naka-mark na "Valid" — kung may kahit isang Pending o Invalid pa, ma-block ang pag-endorse, may lalabas na error na nagsasabi kung alin pa ang kulang i-review. Kailangan munang i-review (Valid/Invalid) ng Evaluator/Admin ang LAHAT ng attachment sa "📄 Review" modal (Bahagi 6) bago sila makapag-endorse.
+
+**Paano i-test:**
+1. Mag-submit ng bagong application na may Criteria table (hal. "APPLICATION FOR MERGING OF SCHOOL") nang hindi muna nag-a-attach ng kahit anong MOV — dapat naka-disable ang SUBMIT at may makikitang babala kung anong criteria ang kulang.
+2. I-attach ang MOV ng lahat ng criteria isa-isa — dapat unti-unting nawawala ang mga pangalan sa babala, at maging enabled na ang SUBMIT pagka-kumpleto na.
+3. Bilang Evaluator, subukang i-set ang bagong application papuntang "Endorsed to Region" nang hindi pa nire-review ang mga MOV — dapat ma-block ito, may error tungkol sa "must be reviewed and marked Valid".
+4. Buksan ang "📄 Review" ng application, markahan Valid ang bawat MOV, tapos ulitin ang "Endorsed to Region" — dapat tuloy na ito (basta't may naka-attach na rin ang endorsement letter).

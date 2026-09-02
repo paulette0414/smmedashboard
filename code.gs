@@ -330,6 +330,44 @@ function formatMovReviewText_(items) {
   }).join("\n\n");
 }
 
+// Throws if a brand-new application is missing a MOV for any criteria row
+// that getApplicationRequirements() would show on the Application Form for
+// this applicationType. Only applies when that application type actually has
+// a per-row criteria table (mode === "table") — types that fall back to a
+// plain document preview have no per-row MOV mechanism at all, so there's
+// nothing to require there. Called only for NEW submissions (saveSchool's
+// insert branch) — an update/resave of an existing application is not
+// re-checked here (mirrors the existing "first-time-only" leniency used
+// elsewhere, e.g. evaluateApplication's endorsement letter).
+function assertMovRequirementsMet_(applicationType, rawMovAttachmentsJson) {
+  const reqInfo = getApplicationRequirements(applicationType);
+  if (!reqInfo || !reqInfo.success || reqInfo.mode !== "table" || !reqInfo.rows || reqInfo.rows.length === 0) {
+    return; // nothing to attach for this application type
+  }
+
+  let incoming;
+  try {
+    incoming = JSON.parse((rawMovAttachmentsJson || "").toString().trim() || "[]");
+  } catch (e) {
+    incoming = [];
+  }
+  if (!Array.isArray(incoming)) incoming = [];
+
+  const attachedCriteria = {};
+  incoming.forEach(function (item) {
+    const key = ((item && item.criteria) || "").toString().trim();
+    if (key && item && item.fileUrl) attachedCriteria[key] = true;
+  });
+
+  const missing = reqInfo.rows
+    .map(function (r) { return (r.criteria || "").toString().trim(); })
+    .filter(function (c) { return c && !attachedCriteria[c]; });
+
+  if (missing.length > 0) {
+    throw new Error("Please attach the MOV (Means of Verification) for all criteria before submitting. Missing: " + missing.join("; "));
+  }
+}
+
 function saveSchool(data) {
   const ss    = SpreadsheetApp.openById("1Yc-DDDU8muIS5HR0OWoLclUnK6RGPrcVe_ydYlgWOYI");
   const sheet = ss.getSheetByName("SchoolData");
@@ -387,6 +425,12 @@ function saveSchool(data) {
 
   } else {
     // ── INSERT new row ───────────────────────────────────────────────────────
+    // A brand-new submission must have a MOV attached for every criteria row
+    // shown on the Application Form (see assertMovRequirementsMet_) — this is
+    // server-side enforcement of the same rule the frontend already blocks
+    // the Submit button on, so a request that bypasses the UI can't skip it.
+    assertMovRequirementsMet_(data.applicationType, data.movAttachments);
+
     const applicationCode = (data.applicationCode || "").toString().trim() || generateApplicationCode();
     const initialReview   = mergeMovReviewData_([], data.movAttachments);
     const movAttachments  = formatMovReviewText_(initialReview);
@@ -1044,6 +1088,19 @@ function evaluateApplication(token, schoolId, decision, remarks, attachmentFiles
   if (!found) return { success: false, message: "Application not found." };
 
   if (decision === "Endorsed to Region") {
+    // Every attached MOV must already be reviewed and marked Valid before an
+    // Evaluator/Admin can endorse the application onward — this forces the
+    // review step (see reviewAttachment()) to actually happen first, instead
+    // of MOVs sitting Pending/Invalid while the application moves on anyway.
+    const movItems = readMovReviewData_(found.sheet, found.rowIndex1based);
+    const notYetValid = movItems.filter(function (it) { return (it && it.status) !== "Valid"; });
+    if (notYetValid.length > 0) {
+      const labels = notYetValid.map(function (it) {
+        return (it.criteria || "(no criteria label)") + " [" + (it.status || "Pending") + "]";
+      });
+      return { success: false, message: "All submitted MOV attachments must be reviewed and marked Valid before endorsing this application to Region. Still needs review: " + labels.join("; ") };
+    }
+
     const existingFiles = (found.sheet.getRange(found.rowIndex1based, 19).getValue() || "").toString().trim();
     const files = Array.isArray(attachmentFiles) ? attachmentFiles.filter(function (f) { return f && f.fileName && f.base64Data; }) : [];
     if (!existingFiles && files.length === 0) {

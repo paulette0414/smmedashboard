@@ -345,6 +345,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .mov-status{ font-size:10.5px; margin-top:5px; color:var(--muted); line-height:1.3; word-break:break-word; }
 .mov-status.ok{ color:var(--ok); font-weight:700; }
 .mov-status.err{ color:var(--err); }
+.mov-required-note{ margin:0 20px 16px 20px; padding:10px 14px; border-radius:8px; background:#fef2f2; border:1px solid #fecaca; color:var(--err); font-size:12.5px; font-weight:600; }
 
 /* ── Dashboard: scorecards ─────────────────────────────────────────────── */
 .stat-grid{
@@ -759,6 +760,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
               <div style="padding:20px;" id="requirementsContainer">
                 <div class="records-empty">Loading requirements…</div>
               </div>
+              <div id="movRequiredNote" class="mov-required-note" hidden></div>
             </div>
 
             <div id="message"></div>
@@ -1248,6 +1250,19 @@ function renderRequirements(res) {
   } else {
     container.innerHTML = '<div class="records-empty">No requirements information available.</div>';
   }
+  validateForm();
+}
+
+// A MOV (Means of Verification) is required for every criteria row shown in
+// the table above — the user can't submit until each row has an attached
+// file. Application types that only show a document preview (no per-row
+// table, e.g. res.mode !== 'table') have nothing to attach here, so they're
+// exempt — requirementRows stays empty for those and this trivially passes.
+function missingMovCriteria() {
+  return requirementRows
+    .map(function (r, idx) { return { criteria: (r.criteria || '').toString().trim(), idx: idx }; })
+    .filter(function (r) { return r.criteria && !movAttachments[r.idx]; })
+    .map(function (r) { return r.criteria; });
 }
 
 function triggerMovAttach(idx) {
@@ -1302,6 +1317,7 @@ function handleMovFileChosen(idx) {
             statusEl.className   = "mov-status err";
           }
           fileInput.value = "";
+          validateForm();
         })
         .catch(function (err) {
           statusEl.textContent = "✘ " + err.message;
@@ -1337,6 +1353,17 @@ function validateForm() {
     el.classList.toggle('invalid', !ok);
     if (!ok) allFilled = false;
   });
+
+  const noteEl = document.getElementById('movRequiredNote');
+  const missing = missingMovCriteria();
+  if (missing.length > 0) {
+    allFilled = false;
+    noteEl.hidden = false;
+    noteEl.textContent = '⚠ Please attach the MOV (Means of Verification) for every criteria before submitting. Still missing: ' + missing.join('; ');
+  } else {
+    noteEl.hidden = true;
+    noteEl.textContent = '';
+  }
 
   document.getElementById('submitBtn').disabled = !allFilled;
 }
