@@ -1748,8 +1748,11 @@ function submitReviewerDecide(schoolId, decision, remarks, attachmentFiles, save
    Admin/Evaluator: see every attached MOV for an application, mark each one
    Valid/Invalid with remarks. User: see the same list read-only for their
    own applications, plus a "Re-upload corrected file" action on anything
-   marked Invalid. Backed by getAttachmentReview / reviewAttachment /
-   reuploadAttachment in code.gs. ───────────────────────────────────────── */
+   marked Invalid — and, once the Evaluator has sent the whole application
+   back as "For Compliance", on EVERY MOV row (not just the ones marked
+   Invalid), so the school can revise whichever documents need fixing before
+   it goes back for re-checking. Backed by getAttachmentReview /
+   reviewAttachment / reuploadAttachment in code.gs. ─────────────────────── */
 let docsModalSchoolId = "";
 let docsModalItems    = []; // the items currently shown in the modal — kept in sync
                             // locally after a save/reupload so we don't need a
@@ -1832,6 +1835,10 @@ function renderDocsModal() {
   const canEvaluate = (session.role === "Admin" || session.role === "Evaluator" || session.role === "Reviewer");
   const items = docsModalItems;
   const record = allRecords.find(function (r) { return String(r.schoolId || "") === String(docsModalSchoolId); });
+  // Once the Evaluator has returned the whole application "For Compliance",
+  // let the applicant re-upload ANY MOV (not only ones individually marked
+  // Invalid) — they may need to revise more than what was flagged.
+  const isForCompliance = !!record && record.status === "For Compliance";
 
   let specialHtml = "";
   if (record) {
@@ -1874,10 +1881,10 @@ function renderDocsModal() {
         '<input type="text" id="docsRemarks_' + idx + '" placeholder="Remarks (optional)" value="' + escapeHtml(item.remarks || "") + '">' +
         '<button type="button" id="docsSaveBtn_' + idx + '" onclick="doReviewAttachment(' + idx + ')">Save</button>' +
       '</div>';
-    } else if (status === "Invalid") {
+    } else if (status === "Invalid" || isForCompliance) {
       html += '<div class="docs-reupload-row" id="docsReuploadRow_' + idx + '">' +
         '<input type="file" id="docsReuploadFile_' + idx + '" style="display:none;" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="doReuploadAttachment(' + idx + ')">' +
-        '<button type="button" id="docsReuploadBtn_' + idx + '" onclick="document.getElementById(\'docsReuploadFile_' + idx + '\').click()">⬆ Re-upload corrected file</button>' +
+        '<button type="button" id="docsReuploadBtn_' + idx + '" onclick="document.getElementById(\'docsReuploadFile_' + idx + '\').click()">⬆ Re-upload' + (status === 'Invalid' ? ' corrected' : '') + ' file</button>' +
       '</div>';
     }
 
