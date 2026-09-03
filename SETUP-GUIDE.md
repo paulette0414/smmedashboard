@@ -324,3 +324,24 @@ Ngayon, sa sandaling maging **"For Compliance"** ang status ng buong application
 **Paano kung kailangan talaga ng User na mag-attach ng file na mas malaki sa 3MB (hal. isang mataas ang resolution na scanned PDF)?** Ipaalam mo lang sa akin kung madalas mangyari ito — may mga paraan tayong puwedeng gawin (hal. i-guide ang User na i-compress muna ang PDF/larawan gamit ang libreng online tool bago i-attach, o baguhin ang buong architecture papuntang direktang pag-upload sa Apps Script nang hindi dumadaan sa Netlify proxy) pero mas kumplikado ito at may sariling trade-offs, kaya sa ngayon ang pinakasimple at ligtas na solusyon muna ay itong malinaw na 3MB na limitasyon.
 
 **Paano i-test:** pumunta sa Application Form, subukan mag-attach ng file na mas malaki sa 3MB sa "📎 Attach MOV" — dapat agad lumabas ang error na "Masyadong malaki ang file..." nang hindi na kailangang maghintay o mag-loading. Subukan ulit gamit ang file na mas maliit sa 3MB — dapat gumana ito nang normal.
+
+## Bahagi 21 — Nawawalang MOV (hal. 4 out of 5 lang na-attach) ay makikita pa rin ngayon sa "📄 Review"/"📄 View"
+
+**Ang dating problema:** kung 5 halimbawa ang required na criteria/MOV ng isang application type pero 4 lang talaga ang na-attach (hal. nakalimutan ng User yung isa, o luma pang application bago pa may "required MOV" na patakaran), ang "📄 Review"/"📄 View" modal ay 4 lang ang ipapakita — yung 5th na hindi talaga na-attach ay **hindi na lumalabas kahit saan**, parang wala lang siyang narealize na kulang, dahil ang listahan doon ay batay lang sa AKTWAL na na-save na data, hindi sa buong listahan ng required criteria.
+
+**Ang inayos:** ngayon, sa tuwing binubuksan ang "📄 Review"/"📄 View" ng isang application (kahit anong role), ipinapakita na ang **LAHAT** ng required na criteria/MOV ayon sa Application Type nito — kahit yung mga walang aktwal na naka-attach na file. Yung criteria na walang file, lalabas itong may markang "*No file attached*" at status na "Pending", kasama pa rin ng review row (dropdown Pending/Valid/Invalid + remarks + Save) kung Admin/Evaluator/Reviewer ang naka-login — para malinaw agad na kulang ito, sa halip na parang wala lang itong record kahit saan.
+
+**Karagdagang proteksyon na kasabay nito:**
+- **Hindi na puwedeng markahan na "Valid" ang isang MOV na walang naka-attach na file** — babalik ito ng error kung susubukan.
+- Puwede pa ring markahan ng Evaluator/Admin/Reviewer na "Invalid" (kasama ng remarks, hal. "Wala pang naka-attach dito") ang isang criteria kahit hindi pa talaga ito na-attach — para malinaw na naka-flag ito bago pa man i-return ang buong application sa Division/User bilang "For Compliance".
+- **Ang "i-endorse to Region" ay hindi na rin puwede** hangga't may kahit isang REQUIRED na criteria na wala pang file o hindi pa Valid — dati, ang tinitingnan lang dito ay yung mga AKTWAL na na-attach (kaya kung may nakalimutang i-attach, puwede pa ring makatawid ito nang hindi na-notice), ngayon kasama na rin sa pagche-check ang mga kulang.
+- Sa sandaling i-attach ng User (sa pamamagitan ng "⬆ Re-upload file" — tingnan ang Bahagi 19, na gumagana rin ngayon dito dahil "Pending" ang status ng bagong lumabas na row) ang kulang na MOV, awtomatiko na itong lalabas bilang normal na attachment — puwede na itong i-review at markahan ng Valid, at saka na lang tuluyang makakapag-Endorse to Region ang Evaluator.
+
+**Mahalagang tandaan:** ito ay pinagsama (merge) lang sa PAGPAPAKITA — kung anuman ang aktwal na na-save na file/review data ay hindi nagbabago o nawawala; dinagdagan lang ito ng mga "placeholder" na row para sa mga kulang, batay sa listahan ng requirements ng Application Type na iyon (kaya ito ay gumagana lang sa mga application type na may Criteria table — yung mga walang ganitong table ay hindi apektado, tulad ng dati).
+
+**Paano i-test:**
+1. Bilang Evaluator/Admin, buksan ang "📄 Review" ng isang application na may Criteria table (hal. "Application for Merging of School" na may 8 criteria) kung saan alam mong hindi kumpleto ang na-attach na MOV — dapat makita mo pa rin ang LAHAT ng 8 criteria, yung mga walang file ay may "No file attached" at "Pending" status.
+2. Subukan markahan na "Valid" ang isang criteria na walang file — dapat ma-block ito.
+3. Markahan na lang "Invalid" ang parehong criteria (may remarks) — dapat gumana ito.
+4. Subukang i-"Endorse to Region" ang application (bilang Evaluator) kahit Valid na ang lahat ng IBANG MOV — dapat naka-block pa rin ito dahil sa kulang na MOV.
+5. I-set munang "For Compliance" ang application, tapos mag-login bilang User (may-ari), buksan ang "📄 View", i-reupload ang kulang na MOV — dapat gumana ito. Markahan itong Valid bilang Evaluator, tapos ulitin ang "Endorse to Region" — dapat tuloy na ito ngayon.

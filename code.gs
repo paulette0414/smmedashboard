@@ -314,6 +314,83 @@ function mergeMovReviewData_(existingItems, rawIncomingJson) {
   return Object.keys(byCriteria).map(function (k) { return byCriteria[k]; });
 }
 
+// getAttachmentReview() used to show ONLY the criteria rows that actually
+// had something submitted for them — so if an applicant attached, say, 4 out
+// of 5 required MOVs, the 5th just silently never appeared anywhere in the
+// "📄 Review"/"📄 View" modal, and nobody reviewing the application could
+// tell one was missing at all. This merges the stored review items with the
+// FULL list of criteria the application type requires (from
+// getApplicationRequirements), so every required row always shows — any
+// criteria with nothing submitted for it appears with an empty file
+// ("No file attached" on the frontend) and status "Pending", same as any
+// other not-yet-reviewed item.
+// Only applies to application types with a per-row criteria table
+// (mode === "table"); other types have no known full list to compare
+// against, so their stored items are returned unchanged.
+// Note: matching is by exact criteria text, so if an application type's
+// criteria wording is edited after some applications already used the old
+// wording (e.g. a criteria label gets reworded), an application submitted
+// under the OLD wording will show that old item AND a separate "missing"
+// row for the new wording — nothing is lost, but it can look like a
+// duplicate. This is expected and rare (only affects applications submitted
+// before a wording change); nothing to fix unless it's actually causing
+// confusion in practice.
+function mergeReviewItemsWithRequirements_(items, applicationType) {
+  const stored = Array.isArray(items) ? items : [];
+  const reqInfo = getApplicationRequirements(applicationType);
+  if (!reqInfo || !reqInfo.success || reqInfo.mode !== "table" || !reqInfo.rows || reqInfo.rows.length === 0) {
+    return stored;
+  }
+
+  const byCriteria = {};
+  stored.forEach(function (it) {
+    const key = ((it && it.criteria) || "").toString().trim();
+    if (key) byCriteria[key] = it;
+  });
+
+  const matchedKeys = {};
+  const merged = reqInfo.rows.map(function (r) {
+    const key = (r.criteria || "").toString().trim();
+    matchedKeys[key] = true;
+    if (byCriteria[key]) return byCriteria[key];
+    return {
+      criteria: key,
+      requirement: "",
+      fileUrl: "",
+      fileName: "",
+      status: "Pending",
+      remarks: "",
+      reviewedBy: "",
+      reviewedAt: ""
+    };
+  });
+
+  // Anything already stored that doesn't match a current requirement row
+  // (e.g. wording changed since submission, or a synthetic/legacy criteria
+  // label) is kept too, appended at the end — never silently dropped.
+  stored.forEach(function (it) {
+    const key = ((it && it.criteria) || "").toString().trim();
+    if (key && !matchedKeys[key]) merged.push(it);
+  });
+
+  return merged;
+}
+
+// Finds an existing review item by criteria label, or creates and appends a
+// fresh placeholder one if nothing was ever submitted for it yet — used by
+// reviewAttachment/reuploadAttachment so acting on a criteria row that
+// getAttachmentReview's merge (above) surfaced as "missing" doesn't fail
+// with "Attachment not found." just because nothing was attached before.
+function findOrCreateReviewItem_(items, criteria) {
+  const key = (criteria || "").toString().trim();
+  let item = items.find(function (it) { return (it.criteria || "").toString().trim() === key; });
+  if (!item) {
+    item = { criteria: key, requirement: "", fileUrl: "", fileName: "", status: "Pending", remarks: "", reviewedBy: "", reviewedAt: "" };
+    items.push(item);
+  }
+  return item;
+}
+
 // Renders the merged review items as the human-readable text stored in
 // column P — same format as before (numbered, clickable Drive links), plus
 // a status/remarks line whenever an item has actually been reviewed, so
@@ -1088,17 +1165,22 @@ function evaluateApplication(token, schoolId, decision, remarks, attachmentFiles
   if (!found) return { success: false, message: "Application not found." };
 
   if (decision === "Endorsed to Region") {
-    // Every attached MOV must already be reviewed and marked Valid before an
+    // Every REQUIRED MOV must already be reviewed and marked Valid before an
     // Evaluator/Admin can endorse the application onward — this forces the
     // review step (see reviewAttachment()) to actually happen first, instead
     // of MOVs sitting Pending/Invalid while the application moves on anyway.
-    const movItems = readMovReviewData_(found.sheet, found.rowIndex1based);
+    // Uses the merged list (not just what's actually stored) so a criteria
+    // the applicant never attached anything for still blocks endorsement,
+    // the same as one that was attached but not yet marked Valid — see
+    // mergeReviewItemsWithRequirements_ for why a raw/stored-only check
+    // would silently miss a criteria that was never submitted at all.
+    const movItems = mergeReviewItemsWithRequirements_(readMovReviewData_(found.sheet, found.rowIndex1based), found.applicationType);
     const notYetValid = movItems.filter(function (it) { return (it && it.status) !== "Valid"; });
     if (notYetValid.length > 0) {
       const labels = notYetValid.map(function (it) {
         return (it.criteria || "(no criteria label)") + " [" + (it.status || "Pending") + "]";
       });
-      return { success: false, message: "All submitted MOV attachments must be reviewed and marked Valid before endorsing this application to Region. Still needs review: " + labels.join("; ") };
+      return { success: false, message: "All required MOV attachments must be submitted, reviewed, and marked Valid before endorsing this application to Region. Still needs attention: " + labels.join("; ") };
     }
 
     const existingFiles = (found.sheet.getRange(found.rowIndex1based, 19).getValue() || "").toString().trim();
@@ -1361,7 +1443,8 @@ function findSchoolRow_(schoolId) {
   const row1based = idx + 2;
   const ownerEmail = (sheet.getRange(row1based, 12).getValue() || "").toString().trim().toLowerCase();
   const applicationCode = (sheet.getRange(row1based, 15).getValue() || "").toString().trim();
-  return { sheet: sheet, rowIndex1based: row1based, ownerEmail: ownerEmail, applicationCode: applicationCode };
+  const applicationType = (sheet.getRange(row1based, 10).getValue() || "").toString().trim();
+  return { sheet: sheet, rowIndex1based: row1based, ownerEmail: ownerEmail, applicationCode: applicationCode, applicationType: applicationType };
 }
 
 // Admin/Evaluator/Reviewer can view any application's attachments; a User
@@ -1381,7 +1464,8 @@ function getAttachmentReview(token, schoolId) {
     }
   }
 
-  const items = readMovReviewData_(found.sheet, found.rowIndex1based);
+  const storedItems = readMovReviewData_(found.sheet, found.rowIndex1based);
+  const items = mergeReviewItemsWithRequirements_(storedItems, found.applicationType);
   return { success: true, schoolId: schoolId, applicationCode: found.applicationCode, items: items };
 }
 
@@ -1404,8 +1488,15 @@ function reviewAttachment(token, schoolId, criteria, status, remarks) {
 
   const items = readMovReviewData_(found.sheet, found.rowIndex1based);
   const key = (criteria || "").toString().trim();
-  const item = items.find(function (it) { return (it.criteria || "").toString().trim() === key; });
-  if (!item) return { success: false, message: "Attachment not found." };
+  // findOrCreateReviewItem_ handles a criteria that getAttachmentReview's
+  // merge surfaced as "missing" (nothing submitted for it yet) — it's still
+  // a valid row to leave a remark on (e.g. flagging it as Invalid/incomplete)
+  // even though there's no file attached to it.
+  const item = findOrCreateReviewItem_(items, key);
+
+  if (status === "Valid" && !((item.fileUrl || "").toString().trim())) {
+    return { success: false, message: "Hindi puwedeng markahan na 'Valid' ang isang MOV na walang naka-attach na file." };
+  }
 
   item.status     = status;
   item.remarks    = (remarks || "").toString().trim();
@@ -1439,9 +1530,13 @@ function reuploadAttachment(token, schoolId, criteria, fileName, base64Data) {
   }
 
   const items = readMovReviewData_(found.sheet, found.rowIndex1based);
-  const key = (criteria || "").toString().trim();
-  const item = items.find(function (it) { return (it.criteria || "").toString().trim() === key; });
-  if (!item) return { success: false, message: "Attachment not found." };
+  // findOrCreateReviewItem_ handles attaching a file for the first time to a
+  // criteria row that getAttachmentReview's merge surfaced as "missing"
+  // (never attached at all) — e.g. the applicant forgot one of five MOVs and
+  // is now filling it in after the application was returned "For
+  // Compliance". Previously this failed outright with "Attachment not
+  // found." because there was nothing on record yet for that criteria.
+  const item = findOrCreateReviewItem_(items, criteria);
 
   const uploadResult = uploadFileToDrive(fileName, base64Data, schoolId, found.applicationCode);
   if (!uploadResult.success) return { success: false, message: uploadResult.message };
