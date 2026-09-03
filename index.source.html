@@ -345,6 +345,7 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .mov-status{ font-size:10.5px; margin-top:5px; color:var(--muted); line-height:1.3; word-break:break-word; }
 .mov-status.ok{ color:var(--ok); font-weight:700; }
 .mov-status.err{ color:var(--err); }
+.mov-size-hint{ font-size:9.5px; margin-top:3px; color:var(--muted); opacity:.75; }
 .mov-required-note{ margin:0 20px 16px 20px; padding:10px 14px; border-radius:8px; background:#fef2f2; border:1px solid #fecaca; color:var(--err); font-size:12.5px; font-weight:600; }
 
 /* ── Dashboard: scorecards ─────────────────────────────────────────────── */
@@ -824,11 +825,58 @@ function callAppsScript(fn, args) {
     method: "POST",
     body: JSON.stringify({ fn: fn, args: args || [] })
   })
-    .then(function (res) { return res.json(); })
-    .then(function (data) {
+    .then(function (res) { return res.text(); })
+    .then(function (text) {
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        // An empty/broken response body — Apps Script itself always returns
+        // valid JSON (see doPost's try/catch in code.gs), so this almost
+        // always means the request never got there at all: most commonly,
+        // a file attachment made the request too big for the Netlify
+        // function proxy (its platform limit is a hard ~6MB request body,
+        // roughly ~4.5MB once a file is base64-encoded — not something we
+        // can raise from our own code), so the request was rejected before
+        // any real error JSON could come back. Could also be a dropped
+        // connection. Surface something actionable instead of the raw
+        // "Unexpected end of JSON input" parser error.
+        throw new Error("Nagka-error sa request papunta sa server (walang laman ang sagot). Kadalasang dahilan nito: masyadong malaki ang naka-attach na file, o naputol ang koneksyon. Subukan ulit gamit ang mas maliit na file o mas mabilis na koneksyon.");
+      }
       if (data.error) throw new Error(data.error);
       return data.result;
     });
+}
+
+// Netlify's serverless function proxy (netlify/functions/gas-proxy.js) sits
+// between the browser and the Apps Script backend, and enforces a hard
+// platform limit of ~6MB on the total request body for a single call — once
+// a file is base64-encoded that shrinks to an effective ceiling of roughly
+// ~4.5MB (base64 inflates raw bytes by about a third). This is a fixed
+// Netlify limit, not something adjustable from our own code, so files over
+// it must be caught here and rejected with a clear message BEFORE we even
+// try to upload — otherwise the request silently fails partway with a
+// confusing "Unexpected end of JSON input" error (see callAppsScript above).
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024; // 3 MB raw per request (~4MB once base64-encoded — safely under Netlify's ~4.5MB effective ceiling, with headroom for multi-file requests sent together)
+
+function formatFileSize(bytes) {
+  if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  if (bytes >= 1024) return Math.round(bytes / 1024) + " KB";
+  return bytes + " B";
+}
+
+// Checks one or more files that will be uploaded TOGETHER in a single
+// request (e.g. Endorsement Letter + Processing Sheet sent at once) against
+// the combined size limit above. Returns "" if OK, or a ready-to-show
+// error message if not.
+function checkUploadSize(fileList) {
+  const files = Array.prototype.slice.call(fileList || []);
+  const total = files.reduce(function (sum, f) { return sum + (f && f.size || 0); }, 0);
+  if (total > MAX_UPLOAD_BYTES) {
+    return "Masyadong malaki ang file" + (files.length > 1 ? "s na pinili" : "") + " (" + formatFileSize(total) +
+      "). Pinakamalaking pwede: " + formatFileSize(MAX_UPLOAD_BYTES) + ". Paki-compress muna o gumamit ng mas maliit na resolution ng scan/larawan.";
+  }
+  return "";
 }
 
 /* ── Auth / session state (new) ─────────────────────────────────────────── */
@@ -1245,6 +1293,7 @@ function renderRequirements(res) {
         '<td class="mov-cell">' +
           '<input type="file" id="movFile_' + idx + '" style="display:none;" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="handleMovFileChosen(' + idx + ')">' +
           '<button type="button" class="mov-attach-btn" id="movBtn_' + idx + '" onclick="triggerMovAttach(' + idx + ')">📎 Attach MOV</button>' +
+          '<div class="mov-size-hint">Max ' + formatFileSize(MAX_UPLOAD_BYTES) + ' per file</div>' +
           '<div class="mov-status" id="movStatus_' + idx + '"></div>' +
         '</td>' +
       '</tr>';
@@ -1302,6 +1351,14 @@ function handleMovFileChosen(idx) {
   const statusEl  = document.getElementById('movStatus_' + idx);
   const btnEl     = document.getElementById('movBtn_' + idx);
   if (!file) return;
+
+  const sizeErr = checkUploadSize([file]);
+  if (sizeErr) {
+    statusEl.textContent = "✘ " + sizeErr;
+    statusEl.className   = "mov-status err";
+    fileInput.value = "";
+    return;
+  }
 
   statusEl.textContent = "Uploading…";
   statusEl.className   = "mov-status";
@@ -1656,6 +1713,8 @@ function doEvaluate(schoolId) {
         fileInput.value = "";
         fileInput.onchange = function () {
           if (!fileInput.files || fileInput.files.length === 0) return;
+          const sizeErr = checkUploadSize(fileInput.files);
+          if (sizeErr) { alert(sizeErr); fileInput.value = ""; return; }
           readFilesAsBase64(fileInput.files).then(function (attachmentFiles) {
             const remarks = prompt("Optional remarks for this decision (leave blank to skip):", "") || "";
             submitEvaluate(schoolId, decision, remarks, attachmentFiles, saveBtn);
@@ -1711,6 +1770,8 @@ function doReviewerDecide(schoolId) {
         fileInput.value = "";
         fileInput.onchange = function () {
           if (!fileInput.files || fileInput.files.length === 0) return;
+          const sizeErr = checkUploadSize(fileInput.files);
+          if (sizeErr) { alert(sizeErr); fileInput.value = ""; return; }
           readFilesAsBase64(fileInput.files).then(function (attachmentFiles) {
             const remarks = prompt("Optional remarks for this decision (leave blank to skip):", "") || "";
             submitReviewerDecide(schoolId, decision, remarks, attachmentFiles, saveBtn);
@@ -1932,6 +1993,9 @@ function doReuploadAttachment(idx) {
   const fileInput = document.getElementById('docsReuploadFile_' + idx);
   const file      = fileInput.files[0];
   if (!file) return;
+
+  const sizeErr = checkUploadSize([file]);
+  if (sizeErr) { alert(sizeErr); fileInput.value = ""; return; }
 
   const btn = document.getElementById('docsReuploadBtn_' + idx);
   const originalLabel = btn.textContent;
