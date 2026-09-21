@@ -1111,7 +1111,10 @@ const APPLICATION_TYPES = [
   { name: "PROCESSING SHEET ON THE APPLICATION FOR ISSUANCE SPECIAL ORDER FOR GRADUATION", fileId: "1fouxzecBEZhGj0w4X0BTFCZZivt3jILL" },
   { name: "PROCESSING SHEET ON THE APPLICATION FOR PRIVATE SENIOR HIGH SCHOOL (SHS) IMPLEMENTATION", fileId: "1PlKSjLtgUqnBCL-WVFCoN-uQ4jDZ_-6e" },
   { name: "PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL GRADE LEVEL or COURSE OF PRIVATE SCHOOL", fileId: "1_x8rI68OGLgTzQHQ9w5aWr5Cp-lWrrqq" },
-  { name: "PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES FOR PUBLIC AND PRIVATE SCHOOLS WITH EXISTING SENIOR HIGH SCHOOL", fileId: "1-3RsDKAmuP2pNpvOv7O3YroUcj4EsR1y" }
+  { name: "PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES FOR PUBLIC AND PRIVATE SCHOOLS WITH EXISTING SENIOR HIGH SCHOOL", fileId: "1-3RsDKAmuP2pNpvOv7O3YroUcj4EsR1y" },
+  // fileId left blank until RO-QAD-F-051 is uploaded to the shared Drive folder;
+  // the Criteria/MOV table for this type is already hand-verified server-side.
+  { name: "PROCESSING SHEET ON THE APPLICATION FOR AUTOMATIC GOVERNMENT RECOGNITION OF PRIVATE SENIOR HIGH SCHOOL", fileId: "" }
 ];
 
 function initApp() {
@@ -1301,7 +1304,7 @@ function renderRequirements(res) {
 
     html += '</tbody></table>';
     html += '<div class="req-note">Source: ' + escapeHtml(res.fileName || '') +
-      ' &middot; <a href="' + res.downloadUrl + '" target="_blank" rel="noopener">Download full form</a></div>';
+      (res.downloadUrl ? ' &middot; <a href="' + res.downloadUrl + '" target="_blank" rel="noopener">Download full form</a>' : '') + '</div>';
     container.innerHTML = html;
   } else if (res.previewUrl) {
     container.innerHTML =
@@ -2073,7 +2076,9 @@ const downloadableForms = [
   { name: "RO-QAD-F-044 PROCESSING SHEET ON THE APPLICATION FOR PRIVATE SENIOR HIGH SCHOOL (SHS) IMPLEMENTATION", fileId: "1PlKSjLtgUqnBCL-WVFCoN-uQ4jDZ_-6e" },
   { name: "RO-QAD-F-045 PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL GRADE LEVEL or COURSE OF PRIVATE SCHOOL", fileId: "1_x8rI68OGLgTzQHQ9w5aWr5Cp-lWrrqq" },
   { name: "RO-QAD-F-009 PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES FOR PUBLIC AND PRIVATE SCHOOLS WITH EXISTING SENIOR HIGH SCHOOL-ISO", fileId: "1-3RsDKAmuP2pNpvOv7O3YroUcj4EsR1y" },
-  { name: "CURRICULUM EVALUATION SHEET", fileId: "198PIjwdPw9rNW9jBSokxuIPkZaO2Pp6z" }
+  { name: "CURRICULUM EVALUATION SHEET", fileId: "198PIjwdPw9rNW9jBSokxuIPkZaO2Pp6z" },
+  // fileId left blank until RO-QAD-F-051 is uploaded to the shared Drive folder.
+  { name: "RO-QAD-F-051 PROCESSING SHEET ON THE APPLICATION FOR AUTOMATIC GOVERNMENT RECOGNITION OF PRIVATE SENIOR HIGH SCHOOL", fileId: "" }
 ];
 
 function renderForms() {
@@ -2092,6 +2097,15 @@ function renderForms() {
 
   let html = "";
   filtered.forEach(function (f) {
+    if (!f.fileId) {
+      // No Drive file uploaded yet for this form — show a disabled placeholder
+      // instead of a DOWNLOAD button that would link to a broken/empty URL.
+      html += '<div class="form-item">' +
+        '<span class="form-name">' + escapeHtml(f.name) + '</span>' +
+        '<span class="downloadBtn" style="opacity:.5;cursor:not-allowed;pointer-events:none;" title="Not yet available">NOT YET AVAILABLE</span>' +
+        '</div>';
+      return;
+    }
     const downloadUrl = "https://drive.google.com/uc?export=download&id=" + f.fileId;
     html += '<div class="form-item">' +
       '<span class="form-name">' + escapeHtml(f.name) + '</span>' +

@@ -345,3 +345,33 @@ Ngayon, sa sandaling maging **"For Compliance"** ang status ng buong application
 3. Markahan na lang "Invalid" ang parehong criteria (may remarks) — dapat gumana ito.
 4. Subukang i-"Endorse to Region" ang application (bilang Evaluator) kahit Valid na ang lahat ng IBANG MOV — dapat naka-block pa rin ito dahil sa kulang na MOV.
 5. I-set munang "For Compliance" ang application, tapos mag-login bilang User (may-ari), buksan ang "📄 View", i-reupload ang kulang na MOV — dapat gumana ito. Markahan itong Valid bilang Evaluator, tapos ulitin ang "Endorse to Region" — dapat tuloy na ito ngayon.
+
+## Bahagi 22 — Bagong Application Type: "Application for Automatic Government Recognition of Private Senior High School" (RO-QAD-F-051)
+
+**Ano ang idinagdag:** bagong Application Type na makikita na ngayon sa grid ng Application Form tab: **"APPLICATION FOR AUTOMATIC GOVERNMENT RECOGNITION OF PRIVATE SENIOR HIGH SCHOOL"** (display name; ang buong pangalan sa likod ay "PROCESSING SHEET ON THE APPLICATION FOR AUTOMATIC GOVERNMENT RECOGNITION OF PRIVATE SENIOR HIGH SCHOOL", base sa opisyal na DepEd MIMAROPA form na **RO-QAD-F-051**).
+
+**Ang Criteria/MOV na kailangang i-attach ng School (3 item, base sa RO-QAD-F-051):**
+1. **Letter of Intent** — Naka-address sa Regional Director sa pamamagitan ng Schools Division Superintendent, na nakasaad ang: (a) intended year of implementation, (b) tracks and electives, (c) lack of pending criminal cases.
+2. **Certificate of Government Permit** — Kopya ng updated Certificate of Government Permit na inisyu ng Regional Office, na nagpapakita ng approved tracks and clusters of electives.
+3. **Proof of Eligibility** — Kopya ng alinman sa: FAAP Accreditation Certificate, PEAC Certification, Memo on Pilot Implementation of Strengthened Curriculum, o Proof of Renewal (ebidensiya ng ongoing/pending FAAP o PEAC renewal, kung applicable).
+
+**Bakit 3 item lang, gayong 5 particulars ang nasa orihinal na RO-QAD-F-051 form:** ang unang dalawang particulars sa physical form — "1. Processing Sheet" (pinipirmahan ng SMME/CID/SGOD Chief/Asst. SDS) at "2. Endorsement" (pinipirmahan ng SDS) — ay parehong ginagawa/pinipirmahan sa loob mismo ng Division, HINDI ng paaralan/Applicant. Ito ay tumutugma sa hiwalay na mekanismo na mayroon na ang sistema: kailangan munang mag-attach ang Evaluator ng "Endorsement Letter and accomplished Processing Sheet" bago niya ma-set ang status sa "Endorsed to Region" (tingnan ang User Manual, Seksyon 4.3). Kaya sa halip na ulitin ito sa criteria table ng Applicant (na magiging kalabisan/nakakalito), ang 3 particulars na kailangan talaga ng paaralan (Letter of Intent, Certificate of Government Permit, Proof of Eligibility) na lang ang inilagay, katulad ng ginawa na rin sa ibang katulad na Application Type sa sistema (hal. "Private Senior High School (SHS) Implementation").
+
+**Mahalagang TODO — Google Drive file para sa Downloadable Forms:** wala pa akong access sa inyong Google Drive, kaya ang bagong entry na ito (parehong sa Application Form type grid at sa Downloadable Forms list bilang "RO-QAD-F-051 …") ay may **blangkong `fileId`** muna sa `code.gs` (constant na `APPLICATION_TYPE_FILE_MAP`) at sa `index.source.html` (mga array na `APPLICATION_TYPES` at `downloadableForms`). Dahil dito:
+- Gumagana na agad ang pag-a-attach ng MOV/criteria sa itaas — hindi ito naaapektuhan, dahil naka-hard-code na ang Criteria table (VERIFIED_REQUIREMENTS).
+- Pero ang "DOWNLOAD" button ng blangkong RO-QAD-F-051 form sa Downloadable Forms tab ay ipapakita muna bilang **"NOT YET AVAILABLE"** (naka-gray out, hindi pwedeng i-click) hangga't hindi pa nailalagay ang tunay na Drive file ID.
+
+**Paano kumpletuhin ito (isang beses lang):**
+1. I-upload ang RO-QAD-F-051 PDF sa parehong shared Drive folder na ginagamit na ng ibang forms: `https://drive.google.com/drive/folders/1HtZ_lmJoqnJgSms4H9PCBnkUoIQC8GNA`
+2. Kunin ang File ID nito mula sa share link (ang mahabang string ng letra/numero pagkatapos ng `/d/` sa URL).
+3. Sa `code.gs`, hanapin ang linyang ito sa loob ng `APPLICATION_TYPE_FILE_MAP` at palitan ang `""` ng kinuhang File ID:
+   ```
+   "PROCESSING SHEET ON THE APPLICATION FOR AUTOMATIC GOVERNMENT RECOGNITION OF PRIVATE SENIOR HIGH SCHOOL": ""
+   ```
+4. Sa `index.source.html`, may DALAWANG lugar na kailangan ding palitan ng parehong File ID: ang entry sa `APPLICATION_TYPES` array at ang entry sa `downloadableForms` array (parehong may `fileId: ""` sa ngayon).
+5. I-rebuild ang `index.html` gamit ang `node build-tools/build-obfuscate.js .` (tingnan ang Bahagi 17), tapos i-deploy ulit.
+
+**Paano i-test (bago pa man makumpleto ang Drive file ID sa itaas):**
+1. Mag-login bilang User/School, pumunta sa Application Form tab — dapat makita ang bagong card na "APPLICATION FOR AUTOMATIC GOVERNMENT RECOGNITION OF PRIVATE SENIOR HIGH SCHOOL" sa grid.
+2. I-click ito — dapat lumabas ang 3 criteria (Letter of Intent, Certificate of Government Permit, Proof of Eligibility) kasama ang mga sub-item/detalye ng bawat isa, at may "📎 Attach MOV" button ang bawat row.
+3. Pumunta sa Downloadable Forms tab, i-search ang "RO-QAD-F-051" — dapat makita ito sa listahan pero naka-gray out ang button na may label na "NOT YET AVAILABLE" (hindi pa DOWNLOAD), hangga't hindi pa nalalagay ang tunay na Drive file ID.
