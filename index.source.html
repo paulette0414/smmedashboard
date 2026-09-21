@@ -482,6 +482,23 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 .docs-review-row button{ width:auto; padding:6px 14px; font-size:12px; background:linear-gradient(135deg,var(--deped-navy),var(--deped-blue)); }
 .docs-reupload-row{ margin-top:10px; }
 .docs-reupload-row button{ width:auto; padding:6px 14px; font-size:12px; background:linear-gradient(135deg,var(--warn),#b45309); }
+.docs-schoolinfo{
+  border:1px solid var(--border); border-radius:10px; padding:14px 16px 16px; margin-bottom:16px;
+  background:var(--deped-blue-soft);
+}
+.docs-schoolinfo-title{
+  font-weight:700; font-size:13.5px; color:var(--deped-navy); margin-bottom:12px;
+  display:flex; align-items:center; gap:6px;
+}
+.docs-schoolinfo-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 20px; }
+.docs-schoolinfo-item label{
+  display:block; font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.4px; margin-bottom:2px;
+}
+.docs-schoolinfo-item .val{ font-size:13px; color:var(--text); word-break:break-word; }
+@media (max-width:480px){
+  .docs-schoolinfo-grid{ grid-template-columns:1fr; }
+}
 .docs-empty{ text-align:center; color:var(--muted); font-size:13px; padding:20px; }
 
 /* ── Mobile responsiveness ─────────────────────────────────────────────── */
@@ -1902,6 +1919,30 @@ function renderDocsModal() {
   // Invalid) — they may need to revise more than what was flagged.
   const isForCompliance = !!record && record.status === "For Compliance";
 
+  let schoolInfoHtml = "";
+  if (record) {
+    const infoFields = [
+      ["School ID", docsModalSchoolId],
+      ["School Name", record.schoolName],
+      ["School Address", record.schoolAddress],
+      ["Courses Offered", record.coursesOffered],
+      ["School Year", record.schoolYear],
+      ["Administrator", record.schoolAdmin],
+      ["Contact Number", record.contactNumber],
+      ["District", record.district],
+      ["Sector", record.sector],
+      ["Email Address", record.emailAddress]
+    ];
+    schoolInfoHtml = '<div class="docs-schoolinfo">' +
+      '<div class="docs-schoolinfo-title">🏫 School Information</div>' +
+      '<div class="docs-schoolinfo-grid">' +
+      infoFields.map(function (f) {
+        return '<div class="docs-schoolinfo-item"><label>' + escapeHtml(f[0]) + '</label><div class="val">' +
+          (f[1] ? escapeHtml(f[1].toString()) : '<em>&mdash;</em>') + '</div></div>';
+      }).join('') +
+      '</div></div>';
+  }
+
   let specialHtml = "";
   if (record) {
     specialHtml += renderAttachmentGroup("Endorsement Letter / Processing Sheet", "📨", record.endorsementLetterUrl);
@@ -1910,11 +1951,11 @@ function renderDocsModal() {
   }
 
   if (!items.length && !specialHtml) {
-    body.innerHTML = '<div class="docs-empty">No documents were attached to this application.</div>';
+    body.innerHTML = schoolInfoHtml + '<div class="docs-empty">No documents were attached to this application.</div>';
     return;
   }
 
-  let html = specialHtml;
+  let html = schoolInfoHtml + specialHtml;
   items.forEach(function (item, idx) {
     const status = item.status || "Pending";
     html += '<div class="docs-item">' +

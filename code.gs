@@ -831,8 +831,11 @@ function getAllSubmissions() {
       return {
         schoolId:            row[0],
         schoolName:          row[1],
+        schoolAddress:       row[2] || "",
         coursesOffered:      row[3],
         schoolYear:          row[4],
+        schoolAdmin:         row[5] || "",
+        contactNumber:       row[6] || "",
         district:            row[7],
         sector:              row[8],
         applicationType:     row[9],

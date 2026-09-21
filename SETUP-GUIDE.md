@@ -363,3 +363,35 @@ Ngayon, sa sandaling maging **"For Compliance"** ang status ng buong application
 1. Mag-login bilang User/School, pumunta sa Application Form tab — dapat makita ang bagong card na "APPLICATION FOR AUTOMATIC GOVERNMENT RECOGNITION OF PRIVATE SENIOR HIGH SCHOOL" sa grid.
 2. I-click ito — dapat lumabas ang 3 criteria (Letter of Intent, Certificate of Government Permit, Proof of Eligibility) kasama ang mga sub-item/detalye ng bawat isa, may "📎 Attach MOV" button ang bawat row, at may gumaganang "Download full form" link sa ilalim ng talahanayan papunta sa RO-QAD-F-051 PDF.
 3. Pumunta sa Downloadable Forms tab, i-search ang "RO-QAD-F-051" — dapat makita ito sa listahan may gumaganang "DOWNLOAD" button na (hindi na "NOT YET AVAILABLE").
+
+## Bahagi 23 — Makikita na ngayon ang "🏫 School Information" sa loob ng "📄 Review"/"📄 View" modal
+
+**Ang dating problema:** kapag binuksan ng Evaluator/Reviewer/Admin (o ng User mismo, sa "📄 View") ang Documents modal ng isang application, ang makikita lang doon ay ang listahan ng criteria/MOV — wala talagang paraan doon para makita agad ang basic na impormasyon ng paaralan (School ID, School Name, Address, atbp.) nang hindi na kailangang bumalik pa sa Application Status table o sa ibang tab. Kailangan pa nilang i-cross-check nang hiwalay kung anong school ang kanilang ini-review.
+
+**Ang idinagdag:** sa itaas mismo ng listahan ng criteria/MOV sa loob ng "📄 Review"/"📄 View" modal, may bago nang light-blue na kahon na may pamagat na **"🏫 School Information"**, na nagpapakita ng 10 detalye ng paaralan sa isang 2-column na grid (1 column na lang sa mobile/maliit na screen):
+
+1. School ID
+2. School Name
+3. School Address
+4. Courses Offered
+5. School Year
+6. Administrator
+7. Contact Number
+8. District
+9. Sector
+10. Email Address
+
+Kung walang laman ang isang field (hal. walang naitalang Administrator), lalabas na lang ang isang em-dash (—) sa halip na blangko o "undefined". Lalabas pa rin ang kahong ito kahit walang kahit anong criteria/MOV o attachment na makikita sa application (hal. bagong-bagong submission pa lang) — hindi ito nakadepende sa mayroon o walang laman ang listahan sa ibaba nito.
+
+**Teknikal na detalye:** dalawang bahagi ang binago:
+1. **`code.gs` — `getAllSubmissions()`:** nagdagdag ng 3 field (`schoolAddress`, `schoolAdmin`, `contactNumber`) na dati ay hindi isinasama sa listahan ng data na ibinabalik papunta sa frontend, kahit na nakatago na pala ito sa `SchoolData` sheet mismo (columns C, F, G). Ang ibang 7 field (School ID, School Name, Courses Offered, School Year, District, Sector, Email Address) ay isinasama na noon pa man.
+2. **`index.source.html` — `renderDocsModal()`:** binago para bumuo ng school-info na HTML block bago pa man ang mga criteria/attachment row, gamit ang `record` na hinahanap na sa `allRecords` array batay sa `docsModalSchoolId` (parehong mekanismo na ginagamit na ng ibang bahagi ng modal na ito).
+
+**Mahalagang tandaan:** display-only ang pagbabagong ito — walang binago sa kung paano na-sa-save o na-p-process ang data sa Google Sheet; dagdag lang ito sa PAGPAPAKITA sa loob ng modal.
+
+**Paano i-test:**
+1. Mag-login bilang Evaluator/Reviewer/Admin, pumunta sa Application Status tab, i-click ang "📄 Review" ng kahit anong application.
+2. Dapat makita agad sa pinaka-itaas ng modal (bago pa man ang mga criteria row) ang "🏫 School Information" na kahon na may 10 detalye ng paaralan.
+3. I-verify na tama ang laman ng bawat field kumpara sa aktwal na na-submit na Application Form ng school na iyon.
+4. Mag-login naman bilang School/User, i-click ang "📄 View" ng sarili nilang application — dapat makita rin doon ang parehong "🏫 School Information" na kahon.
+5. I-resize/subukan sa mobile — dapat mag-single column na lang ang grid sa halip na 2-column.
