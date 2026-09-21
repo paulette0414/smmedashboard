@@ -1605,13 +1605,7 @@ const APPLICATION_TYPE_FILE_MAP = {
   "PROCESSING SHEET ON THE APPLICATION FOR ISSUANCE SPECIAL ORDER FOR GRADUATION": "1fouxzecBEZhGj0w4X0BTFCZZivt3jILL",
   "PROCESSING SHEET ON THE APPLICATION FOR PRIVATE SENIOR HIGH SCHOOL (SHS) IMPLEMENTATION": "1PlKSjLtgUqnBCL-WVFCoN-uQ4jDZ_-6e",
   "PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL GRADE LEVEL or COURSE OF PRIVATE SCHOOL": "1_x8rI68OGLgTzQHQ9w5aWr5Cp-lWrrqq",
-  // TODO: set this to the real Drive fileId once RO-QAD-F-051 (Processing
-  // Sheet on the Application for Automatic Government Recognition of Private
-  // Senior High School) is uploaded to the shared Drive folder above. Left
-  // blank for now — the Criteria/MOV list already works via VERIFIED_
-  // REQUIREMENTS below regardless, but the Downloadable Forms entry for this
-  // type will have no working preview/download link until this is filled in.
-  "PROCESSING SHEET ON THE APPLICATION FOR AUTOMATIC GOVERNMENT RECOGNITION OF PRIVATE SENIOR HIGH SCHOOL": ""
+  "PROCESSING SHEET ON THE APPLICATION FOR AUTOMATIC GOVERNMENT RECOGNITION OF PRIVATE SENIOR HIGH SCHOOL": "14f5uXSDBGp3mKVynYRgvnRqQCoE_Vly1"
 };
 
 // ── VERIFIED_REQUIREMENTS ──────────────────────────────────────────────────────
