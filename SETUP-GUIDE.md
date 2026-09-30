@@ -395,3 +395,34 @@ Kung walang laman ang isang field (hal. walang naitalang Administrator), lalabas
 3. I-verify na tama ang laman ng bawat field kumpara sa aktwal na na-submit na Application Form ng school na iyon.
 4. Mag-login naman bilang School/User, i-click ang "📄 View" ng sarili nilang application — dapat makita rin doon ang parehong "🏫 School Information" na kahon.
 5. I-resize/subukan sa mobile — dapat mag-single column na lang ang grid sa halip na 2-column.
+
+## Bahagi 24 — Bagong feature: "Manage Application Forms" — magdagdag ng bagong Application Form nang walang code edit
+
+**Ang dating problema:** kada may bagong Application Type na kailangan idagdag (hal. ang RO-QAD-F-051 sa Bahagi 22), kailangan pa akong i-message para direktang i-edit ang `code.gs` at `index.source.html`, i-obfuscate ulit, at i-redeploy — hindi ito magagawa ng Admin mismo sa loob ng system.
+
+**Ang idinagdag:** bagong tab sa Admin sidebar, **"🗂️ Manage Application Forms"** (makikita lang ito kapag naka-login bilang **Admin**), kung saan puwede ka nang:
+
+1. **Magdagdag ng bagong Application Form** — i-click ang "+ Add New Form", ilagay ang pangalan (hal. `APPLICATION FOR ESTABLISHMENT OF A NEW READING CENTER`).
+2. **Buuin ang Criteria / Required Documents** nito nang direkta sa form — "+ Add Criteria" para sa bawat criteria item (hal. "1. Letter of Intent"), "+ Add Requirement" para sa listahan ng kailangang dokumento sa ilalim niyon, at kung kailangan ng nested na listahan (hal. "Copy of any of the following:" na may mga choices sa ilalim, tulad ng ginawa sa RO-QAD-F-051), i-check lang ang "may sub-items" sa tabi ng requirement na iyon at lalabas ang "+ Add Sub-item".
+3. **I-attach mismo ang opisyal na PDF ng form** — sa parehong modal, sa ilalim ng "Official Form (PDF)", pumili ng file (Max 3.0 MB, kagaya ng limitasyon sa MOV attachments — Bahagi 20) — awtomatiko na itong mapupunta sa Google Drive (sa isang bagong subfolder na "Admin-Added Forms" sa loob ng parehong shared folder ng ibang forms), **hindi na kailangang mag-upload ka pa nang hiwalay sa Drive at magpadala pa sa akin ng File ID** (ang dating proseso sa Bahagi 22).
+4. I-click ang "Save Application Form" — agad itong lalabas sa **Application Form tab** (grid ng mga type) at sa **Downloadable Forms tab**, kasabay ng mga existing/hand-coded na Application Type — walang pagkakaiba sa paggamit ng Applicant, gumagana rin ang "📎 Attach MOV", ang missing-MOV detection (Bahagi 21), atbp.
+
+**Pag-edit at pag-disable:** sa listahan ng "Manage Application Forms" tab, may **Edit** at **Disable/Enable** na button sa bawat row:
+- **Edit** — puwede mong baguhin ang Criteria/Required Documents at/o palitan ang naka-attach na PDF. Hindi na puwedeng baguhin ang PANGALAN ng Application Form matapos itong ma-save (sadyang ganito — kung babaguhin ang pangalan, mawawalan ng laman ang mga applications na naisumite na gamit ang lumang pangalan). Kung kailangan mo talaga ng ibang pangalan, magdagdag na lang ng bago at i-Disable ang luma.
+- **Disable** — itinatago ang Application Type mula sa Application Form grid at Downloadable Forms list para sa MGA BAGONG susunod na magsusumite, PERO hindi nito sinisira ang mga applications na naisumite na gamit ito — puwede pa ring buksan ng Evaluator/Reviewer/Admin ang "📄 Review" ng mga iyon at makita ang buong Criteria list, dahil walang talagang binubura — soft-hide lang ito, hindi hard-delete. **Enable** ang kabaligtaran nito, para lumabas ulit ito sa mga listahan.
+
+**Mahalagang tandaan:**
+- Ito ay **karagdagan lang** sa mga existing na ~22 Application Type na naka-code pa rin sa `code.gs`/`index.source.html` (hal. "APPLICATION FOR MERGING OF SCHOOL", ang RO-QAD-F-051 sa Bahagi 22, atbp.) — hindi sila apektado o binago ng feature na ito. Dalawang magkaibang pinagmumulan ang pinagsasama lang (merge) sa PAGPAPAKITA: ang mga naka-code (hindi nagbabago maliban kung ako mismo ang mag-e-edit ng code) at ang mga Admin-added (naka-imbak sa isang bagong Google Sheet tab na "CustomApplicationTypes", awtomatikong nagagawa sa unang paggamit).
+- Ang pangalan na ilalagay mo ay awtomatikong ginagawang LAHAT MALAKING LETRA (UPPERCASE) para consistent sa istilo ng ibang Application Type sa system.
+- Hindi puwedeng magdagdag ng pangalan na parehong-pareho (kahit magkaiba ang malaki/maliit na letra) sa isa nang existing na Application Type — naka-code man ito o Admin-added — para walang mag-aagawan/mag-override sa isa't isa.
+- Kailangan ng kahit isang Criteria, at kailangan ng kahit isang Requirement sa bawat Criteria, bago makapag-save — may malinaw na error message kung may nakalimutan.
+- Opsyonal ang pag-attach ng PDF — puwede mong i-save muna ang Criteria list nang wala pang PDF (lalabas na "NOT YET AVAILABLE" ang download button, tulad ng ginawa noon sa Bahagi 22 bago pa dumating ang tunay na File ID), tapos i-Edit na lang mamaya para idagdag ang PDF kapag nasa-Drive na ito.
+
+**Paano i-test:**
+1. Mag-login bilang Admin, pumunta sa "🗂️ Manage Application Forms" sa sidebar.
+2. I-click ang "+ Add New Form", punan ang pangalan, magdagdag ng 2 criteria (isa sa mga ito na may "may sub-items" na naka-check), at mag-attach ng test PDF.
+3. I-save — dapat lumabas agad ito sa listahan dito, sa Application Form grid (bilang User), at sa Downloadable Forms tab, na may gumaganang download link papunta sa na-attach na PDF.
+4. Subukang magsumite ng application gamit ang bagong type na ito bilang User — dapat lumabas ang tamang Criteria/MOV rows, gumagana ang "📎 Attach MOV".
+5. I-Disable ito — dapat mawala ito sa Application Form grid/Downloadable Forms PERO makikita pa rin ang naisumite nang application (Bahagi 3-4) sa "📄 Review" ng Evaluator/Admin nang buo pa rin ang Criteria list.
+6. I-Enable ulit — dapat bumalik ito sa mga listahan.
+7. I-Edit ang isa sa mga naidagdag na form — subukang magdagdag/mag-alis ng criteria/requirement/sub-item, at palitan ang naka-attach na PDF — dapat masalamin agad ang mga pagbabago pagkatapos i-save.

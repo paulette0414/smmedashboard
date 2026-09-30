@@ -501,6 +501,64 @@ table.records tbody tr:hover{ background:#f4f8ff; }
 }
 .docs-empty{ text-align:center; color:var(--muted); font-size:13px; padding:20px; }
 
+/* ── Manage Application Forms (new, Admin only) — "Add Application Form" ── */
+.status-toolbar .fb-open-btn{ width:auto; padding:0 18px; background:linear-gradient(135deg,#3c9d2f,#58b947); }
+.users-toolbar-btns .edit{ background:linear-gradient(135deg,var(--deped-navy),var(--deped-blue)); }
+.formbuilder-modal{ max-width:820px; }
+.formbuilder-modal .docs-modal-body{ max-height:64vh; }
+.docs-modal-footer{
+  padding:16px 24px; border-top:1px solid var(--border); background:#f8fafc;
+  display:flex; justify-content:flex-end; gap:10px;
+}
+.docs-modal-footer button{ width:auto; padding:11px 22px; }
+.docs-modal-footer .fb-cancel{ background:#fff; color:var(--text); border:1px solid var(--border); box-shadow:none; }
+.fb-field{ margin-bottom:20px; }
+.fb-field label{ display:block; font-weight:700; font-size:13px; color:var(--deped-navy); margin-bottom:6px; }
+.fb-field .fb-optional{ font-weight:400; color:var(--muted); font-size:12px; }
+.fb-field input[type="text"]{
+  width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:13.5px; font-family:inherit;
+}
+.fb-field input[type="text"]:disabled{ background:#f1f5f9; color:var(--muted); }
+.fb-error{
+  background:#fef2f2; border:1px solid #fecaca; color:var(--err); border-radius:8px; padding:10px 14px;
+  font-size:13px; margin-top:6px;
+}
+.fb-criteria-card{
+  border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:14px; background:#fbfcfe;
+}
+.fb-criteria-head{ display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; }
+.fb-criteria-head .fb-criteria-input{ font-weight:700; }
+.fb-requirements{ padding-left:14px; border-left:3px solid var(--deped-blue-light); }
+.fb-requirement-row{ display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; }
+.fb-sub-row{ margin-left:22px; }
+.fb-req-input{
+  flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit;
+  resize:none; min-height:38px;
+}
+.fb-nested-toggle{
+  display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); white-space:nowrap;
+  padding-top:9px; user-select:none;
+}
+.fb-nested-toggle input{ width:auto; }
+.fb-remove-btn{
+  width:30px; height:30px; flex:none; padding:0; font-size:14px; line-height:1;
+  background:#fff; color:var(--err); border:1px solid #fecaca; box-shadow:none;
+}
+.fb-sublist{ margin-bottom:10px; }
+.fb-add-btn{
+  width:auto; padding:8px 16px; font-size:12.5px; background:transparent; color:var(--deped-blue);
+  border:1.5px dashed var(--deped-blue); box-shadow:none;
+}
+.fb-add-req-btn{ margin-top:2px; }
+.fb-add-sub-btn{
+  width:auto; padding:6px 14px; font-size:11.5px; margin-left:22px; background:transparent; color:var(--deped-blue);
+  border:1.5px dashed var(--deped-blue); box-shadow:none;
+}
+@media (max-width:600px){
+  .fb-requirement-row{ flex-wrap:wrap; }
+  .fb-nested-toggle{ padding-top:0; }
+}
+
 /* ── Mobile responsiveness ─────────────────────────────────────────────── */
 @media (max-width: 880px){
   .app{ flex-direction:column; box-shadow:none; }
@@ -655,6 +713,9 @@ table.records tbody tr:hover{ background:#f4f8ff; }
       </li>
       <li class="nav-item" id="tabBtnUsers" onclick="showTab('users')" hidden>
         <span class="nav-icon">👥</span><span>Manage Users</span>
+      </li>
+      <li class="nav-item" id="tabBtnManageForms" onclick="showTab('manageforms')" hidden>
+        <span class="nav-icon">🗂️</span><span>Manage Application Forms</span>
       </li>
     </ul>
 
@@ -825,6 +886,59 @@ table.records tbody tr:hover{ background:#f4f8ff; }
         </div>
       </div>
 
+      <!-- ───────────────────────── MANAGE APPLICATION FORMS TAB (new, Admin only) ───────────────────────── -->
+      <div class="tab-panel" id="panelManageForms">
+        <div class="status-toolbar">
+          <input id="manageFormsFilter" placeholder="Search form name…" oninput="renderManageForms()">
+          <button type="button" onclick="loadManageForms()">↻ REFRESH</button>
+          <button type="button" class="fb-open-btn" onclick="openFormBuilder()">+ Add New Form</button>
+        </div>
+        <div class="table-card">
+          <div id="manageFormsContainer">
+            <div class="records-empty">Click REFRESH or switch to this tab to load forms.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ ADD/EDIT APPLICATION FORM MODAL (new, Admin only) ══════════════════ -->
+<div id="formBuilderOverlay" hidden onclick="if(event.target===this) closeFormBuilder();">
+  <div class="docs-modal formbuilder-modal">
+    <div class="docs-modal-header">
+      <div>
+        <h3 id="formBuilderTitle">+ Add New Application Form</h3>
+        <div class="sub">Pangalan, Criteria/Required Documents, at opisyal na PDF ng Application Form.</div>
+      </div>
+      <button type="button" class="docs-modal-close" onclick="closeFormBuilder()">✕ Close</button>
+    </div>
+    <div class="docs-modal-body">
+
+      <div class="fb-field">
+        <label>Application Form Name</label>
+        <input type="text" id="fbTypeName" placeholder="hal. APPLICATION FOR ESTABLISHMENT OF A NEW READING CENTER">
+      </div>
+
+      <div class="fb-field">
+        <label>Official Form (PDF) <span class="fb-optional">— opsyonal, puwedeng idagdag/palitan mamaya</span></label>
+        <input type="file" id="fbFileInput" accept=".pdf,.doc,.docx" onchange="handleFormBuilderFileChosen()">
+        <div class="mov-size-hint">Max <span id="fbMaxSize"></span> per file</div>
+        <div class="mov-status" id="fbFileStatus"></div>
+      </div>
+
+      <div class="fb-field">
+        <label>Criteria / Required Documents</label>
+        <div id="fbCriteriaList"></div>
+        <button type="button" class="fb-add-btn" onclick="fbAddCriteria()">+ Add Criteria</button>
+      </div>
+
+      <div id="fbError" class="fb-error" hidden></div>
+    </div>
+    <div class="docs-modal-footer">
+      <button type="button" class="fb-cancel" onclick="closeFormBuilder()">Cancel</button>
+      <button type="button" class="save" id="fbSaveBtn" onclick="saveFormBuilder()">Save Application Form</button>
     </div>
   </div>
 </div>
@@ -1019,6 +1133,8 @@ function enterApp() {
   document.getElementById("navFormLi").hidden = (session.role === "Evaluator" || session.role === "Reviewer");
   // Only Admins manage accounts.
   document.getElementById("tabBtnUsers").hidden = (session.role !== "Admin");
+  // Only Admins add/edit Application Forms.
+  document.getElementById("tabBtnManageForms").hidden = (session.role !== "Admin");
 
   loadNotifications();
   if (notificationPollTimer) clearInterval(notificationPollTimer);
@@ -1137,6 +1253,11 @@ function initApp() {
   loadDropdowns();
   renderForms();
   loadDashboard();
+  // Merge in any Admin-added Application Types (see "Manage Application
+  // Forms" tab) on top of the hand-coded list above — progressive
+  // enhancement: the app is already fully usable with the static list by
+  // the time this network call resolves.
+  refreshCustomApplicationTypes();
 }
 
 // Display-only formatting for application type names shown in the
@@ -1178,7 +1299,8 @@ const TAB_TITLES = {
   form:      { title: "Application Form",  sub: "Select an Application Type to begin." },
   status:    { title: "Application Status", sub: "Search and track submitted applications." },
   forms:     { title: "Downloadable Forms", sub: "Browse and download official DepEd application forms." },
-  users:     { title: "Manage Users",      sub: "Approve, disable, and review registered accounts." }
+  users:     { title: "Manage Users",      sub: "Approve, disable, and review registered accounts." },
+  manageforms: { title: "Manage Application Forms", sub: "Add, edit, at i-manage ang mga Admin-added na Application Form." }
 };
 
 function showTab(name) {
@@ -1187,11 +1309,13 @@ function showTab(name) {
   document.getElementById('panelStatus').classList.toggle('active', name === 'status');
   document.getElementById('panelForms').classList.toggle('active', name === 'forms');
   document.getElementById('panelUsers').classList.toggle('active', name === 'users');
+  document.getElementById('panelManageForms').classList.toggle('active', name === 'manageforms');
   document.getElementById('tabBtnDashboard').classList.toggle('active', name === 'dashboard');
   document.getElementById('navFormParent').classList.toggle('active', name === 'form');
   document.getElementById('tabBtnStatus').classList.toggle('active', name === 'status');
   document.getElementById('tabBtnForms').classList.toggle('active', name === 'forms');
   document.getElementById('tabBtnUsers').classList.toggle('active', name === 'users');
+  document.getElementById('tabBtnManageForms').classList.toggle('active', name === 'manageforms');
 
   if (name === 'form') {
     document.getElementById('typeSelectScreen').style.display     = selectedApplicationType ? 'none'  : 'block';
@@ -1216,6 +1340,7 @@ function showTab(name) {
   if (name === 'status') loadRecords();
   if (name === 'forms')  renderForms();
   if (name === 'users')  loadUsers();
+  if (name === 'manageforms') loadManageForms();
 }
 
 function toggleFormMenu() {
@@ -2218,6 +2343,353 @@ function doSetUserStatus(username, newStatus) {
       loadUsers();
     })
     .catch(function (err) { alert("Error: " + err.message); });
+}
+
+/* ── Manage Application Forms tab (new, Admin only) — "Add Application
+   Form" feature. Lets an Admin add a brand-new Application Type — name,
+   Criteria/Required Documents, and its official PDF — entirely from the UI,
+   no code edit needed. See the matching "CUSTOM APPLICATION TYPES" section
+   in code.gs for the backend half of this. ─────────────────────────────── */
+let customFormTypes            = [];  // full Admin-view list (Active + Disabled)
+let formBuilderCriteria        = [];  // working criteria array while the modal is open
+let formBuilderFileId          = "";
+let formBuilderFileName        = "";
+let formBuilderEditingTypeName = "";  // "" = adding new; otherwise editing this existing type (name locked)
+
+// Re-fetches the Active custom Application Types and merges them into
+// APPLICATION_TYPES / downloadableForms (tagged isCustom so a later refresh
+// can cleanly remove-and-re-add them instead of duplicating). Called once on
+// app start, and again right after any add/edit/enable/disable so the
+// Application Form grid and Downloadable Forms tab stay in sync without
+// needing a page reload.
+function refreshCustomApplicationTypes() {
+  callAppsScript('getCustomApplicationTypesPublic', [])
+    .then(function (res) {
+      if (!res || !res.success) return;
+      for (let i = APPLICATION_TYPES.length - 1; i >= 0; i--) {
+        if (APPLICATION_TYPES[i].isCustom) APPLICATION_TYPES.splice(i, 1);
+      }
+      for (let i = downloadableForms.length - 1; i >= 0; i--) {
+        if (downloadableForms[i].isCustom) downloadableForms.splice(i, 1);
+      }
+      (res.types || []).forEach(function (t) {
+        APPLICATION_TYPES.push({ name: t.name, fileId: t.fileId || "", isCustom: true });
+        downloadableForms.push({ name: t.name, fileId: t.fileId || "", isCustom: true });
+      });
+      buildTypeMenus();
+      renderForms();
+    })
+    .catch(function () { /* non-fatal — the hand-coded Application Types still work fine on their own */ });
+}
+
+function loadManageForms() {
+  document.getElementById("manageFormsContainer").innerHTML = '<div class="records-empty">Loading forms…</div>';
+  callAppsScript('listCustomApplicationTypes', [session.token])
+    .then(function (res) {
+      if (!res.success) throw new Error(res.message);
+      customFormTypes = res.types || [];
+      renderManageForms();
+    })
+    .catch(function (err) {
+      document.getElementById("manageFormsContainer").innerHTML =
+        '<div class="records-empty">Error loading forms: ' + escapeHtml(err.message) + '</div>';
+    });
+}
+
+function renderManageForms() {
+  const filterVal = (document.getElementById("manageFormsFilter").value || "").toLowerCase().trim();
+  const container = document.getElementById("manageFormsContainer");
+
+  const filtered = customFormTypes.filter(function (t) {
+    if (!filterVal) return true;
+    return (t.typeName || "").toLowerCase().includes(filterVal);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="records-empty">' +
+      (customFormTypes.length === 0
+        ? 'Wala pang Admin-added na Application Form. I-click ang "+ Add New Form" sa itaas para magdagdag.'
+        : 'No forms found.') +
+      '</div>';
+    return;
+  }
+
+  let html = '<div class="records-scroll"><table class="records"><thead><tr>' +
+    '<th>Application Form Name</th><th>Criteria</th><th>Form File</th><th>Date Added</th><th>Added By</th><th>Status</th><th>Actions</th>' +
+    '</tr></thead><tbody>';
+
+  filtered.forEach(function (t) {
+    const safeName = escapeHtml(t.typeName).replace(/'/g, "\\'");
+    html += '<tr>' +
+      '<td>' + escapeHtml(t.typeName) + '</td>' +
+      '<td>' + ((t.criteria && t.criteria.length) || 0) + ' item(s)</td>' +
+      '<td>' + (t.fileId ? ('✔ ' + escapeHtml(t.fileName || "Uploaded")) : '<em>Wala pang PDF</em>') + '</td>' +
+      '<td>' + escapeHtml(t.dateAdded) + '</td>' +
+      '<td>' + escapeHtml(t.addedBy) + '</td>' +
+      '<td><span class="status-pill ' + escapeHtml(t.status) + '">' + escapeHtml(t.status) + '</span></td>' +
+      '<td class="users-toolbar-btns">' +
+        '<button class="edit" onclick="openFormBuilder(\'' + safeName + '\')">Edit</button>' +
+        (t.status === 'Active'
+          ? '<button class="disable" onclick="doSetCustomFormStatus(\'' + safeName + '\',\'Disabled\')">Disable</button>'
+          : '<button class="approve" onclick="doSetCustomFormStatus(\'' + safeName + '\',\'Active\')">Enable</button>') +
+      '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+}
+
+function doSetCustomFormStatus(typeName, newStatus) {
+  callAppsScript('setCustomApplicationTypeStatus', [session.token, typeName, newStatus])
+    .then(function (res) {
+      if (!res.success) { alert(res.message); return; }
+      loadManageForms();
+      refreshCustomApplicationTypes();
+    })
+    .catch(function (err) { alert("Error: " + err.message); });
+}
+
+/* ── Add/Edit Application Form modal ──────────────────────────────────── */
+function openFormBuilder(typeName) {
+  fbClearError();
+  formBuilderEditingTypeName = typeName || "";
+  const nameInput = document.getElementById('fbTypeName');
+
+  if (typeName) {
+    const existing = customFormTypes.find(function (t) { return t.typeName === typeName; });
+    formBuilderCriteria = existing ? JSON.parse(JSON.stringify(existing.criteria || [])) : [];
+    formBuilderFileId   = existing ? (existing.fileId || "") : "";
+    formBuilderFileName = existing ? (existing.fileName || "") : "";
+    nameInput.value    = typeName;
+    nameInput.disabled = true;
+    document.getElementById('formBuilderTitle').textContent = "Edit Application Form";
+  } else {
+    formBuilderCriteria = [];
+    formBuilderFileId   = "";
+    formBuilderFileName = "";
+    nameInput.value    = "";
+    nameInput.disabled = false;
+    document.getElementById('formBuilderTitle').textContent = "+ Add New Application Form";
+  }
+
+  document.getElementById('fbFileInput').value = "";
+  const fileStatusEl = document.getElementById('fbFileStatus');
+  fileStatusEl.textContent = formBuilderFileName ? ("✔ " + formBuilderFileName) : "";
+  fileStatusEl.className   = formBuilderFileName ? "mov-status ok" : "mov-status";
+  document.getElementById('fbMaxSize').textContent = formatFileSize(MAX_UPLOAD_BYTES);
+
+  if (formBuilderCriteria.length === 0) fbAddCriteria(); // seed one empty row for convenience
+  else renderFormBuilderCriteria();
+
+  document.getElementById('formBuilderOverlay').hidden = false;
+}
+
+function closeFormBuilder() {
+  document.getElementById('formBuilderOverlay').hidden = true;
+}
+
+function fbClearError() {
+  const el = document.getElementById('fbError');
+  el.hidden = true;
+  el.textContent = "";
+}
+
+function fbShowError(msg) {
+  const el = document.getElementById('fbError');
+  el.hidden = false;
+  el.textContent = msg;
+}
+
+/* Criteria/Requirements builder state — same shape as a VERIFIED_REQUIREMENTS
+   entry: [{ criteria: "...", requirements: [ "plain string" | {text, sub:[...]} ] }].
+   Text inputs only patch this array in place (no re-render) so typing never
+   loses focus/cursor position; only structural add/remove/toggle actions
+   re-render the builder's HTML. */
+function fbAddCriteria() {
+  formBuilderCriteria.push({ criteria: "", requirements: [""] });
+  renderFormBuilderCriteria();
+}
+function fbRemoveCriteria(ci) {
+  formBuilderCriteria.splice(ci, 1);
+  renderFormBuilderCriteria();
+}
+function fbCriteriaTextChanged(ci, value) {
+  formBuilderCriteria[ci].criteria = value;
+}
+function fbAddRequirement(ci) {
+  formBuilderCriteria[ci].requirements.push("");
+  renderFormBuilderCriteria();
+}
+function fbRemoveRequirement(ci, ri) {
+  formBuilderCriteria[ci].requirements.splice(ri, 1);
+  renderFormBuilderCriteria();
+}
+function fbRequirementTextChanged(ci, ri, value) {
+  const req = formBuilderCriteria[ci].requirements[ri];
+  if (typeof req === 'string') {
+    formBuilderCriteria[ci].requirements[ri] = value;
+  } else {
+    req.text = value;
+  }
+}
+// Toggles one requirement line between plain text and a "header + nested
+// sub-items" line (e.g. "Copy of any of the following:" with a list under
+// it) — the same nested shape used by several hand-coded Application Types.
+function fbToggleNested(ci, ri) {
+  const req = formBuilderCriteria[ci].requirements[ri];
+  if (typeof req === 'string') {
+    formBuilderCriteria[ci].requirements[ri] = { text: req, sub: [""] };
+  } else {
+    formBuilderCriteria[ci].requirements[ri] = req.text || "";
+  }
+  renderFormBuilderCriteria();
+}
+function fbAddSubItem(ci, ri) {
+  const req = formBuilderCriteria[ci].requirements[ri];
+  if (typeof req !== 'string') { req.sub.push(""); renderFormBuilderCriteria(); }
+}
+function fbRemoveSubItem(ci, ri, si) {
+  const req = formBuilderCriteria[ci].requirements[ri];
+  if (typeof req !== 'string') { req.sub.splice(si, 1); renderFormBuilderCriteria(); }
+}
+function fbSubItemTextChanged(ci, ri, si, value) {
+  const req = formBuilderCriteria[ci].requirements[ri];
+  if (typeof req !== 'string') req.sub[si] = value;
+}
+
+function renderFormBuilderCriteria() {
+  const container = document.getElementById('fbCriteriaList');
+  let html = "";
+
+  formBuilderCriteria.forEach(function (row, ci) {
+    html += '<div class="fb-criteria-card">' +
+      '<div class="fb-criteria-head">' +
+        '<input type="text" class="fb-req-input fb-criteria-input" placeholder="hal. 1. Letter of Intent" value="' +
+          escapeHtml(row.criteria) + '" oninput="fbCriteriaTextChanged(' + ci + ', this.value)">' +
+        '<button type="button" class="fb-remove-btn" onclick="fbRemoveCriteria(' + ci + ')" title="Alisin ang criteria na ito">✕</button>' +
+      '</div>' +
+      '<div class="fb-requirements">';
+
+    (row.requirements || []).forEach(function (req, ri) {
+      const isNested = typeof req !== 'string';
+      const reqText  = isNested ? (req.text || "") : req;
+      html += '<div class="fb-requirement-row">' +
+        '<textarea class="fb-req-input" rows="1" placeholder="Requirement text…" ' +
+          'oninput="fbRequirementTextChanged(' + ci + ',' + ri + ', this.value)">' + escapeHtml(reqText) + '</textarea>' +
+        '<label class="fb-nested-toggle"><input type="checkbox" ' + (isNested ? 'checked' : '') +
+          ' onchange="fbToggleNested(' + ci + ',' + ri + ')"> may sub-items</label>' +
+        '<button type="button" class="fb-remove-btn" onclick="fbRemoveRequirement(' + ci + ',' + ri + ')" title="Alisin">✕</button>' +
+        '</div>';
+
+      if (isNested) {
+        html += '<div class="fb-sublist">';
+        (req.sub || []).forEach(function (subText, si) {
+          html += '<div class="fb-requirement-row fb-sub-row">' +
+            '<input type="text" class="fb-req-input" placeholder="Sub-item…" value="' + escapeHtml(subText) + '" ' +
+              'oninput="fbSubItemTextChanged(' + ci + ',' + ri + ',' + si + ', this.value)">' +
+            '<button type="button" class="fb-remove-btn" onclick="fbRemoveSubItem(' + ci + ',' + ri + ',' + si + ')" title="Alisin">✕</button>' +
+            '</div>';
+        });
+        html += '<button type="button" class="fb-add-sub-btn" onclick="fbAddSubItem(' + ci + ',' + ri + ')">+ Add Sub-item</button></div>';
+      }
+    });
+
+    html += '<button type="button" class="fb-add-btn fb-add-req-btn" onclick="fbAddRequirement(' + ci + ')">+ Add Requirement</button>' +
+      '</div>' + // .fb-requirements
+    '</div>'; // .fb-criteria-card
+  });
+
+  container.innerHTML = html || '<div class="records-empty">Wala pang criteria — i-click ang "+ Add Criteria" sa ibaba.</div>';
+}
+
+function handleFormBuilderFileChosen() {
+  const fileInput = document.getElementById('fbFileInput');
+  const file      = fileInput.files[0];
+  const statusEl  = document.getElementById('fbFileStatus');
+  if (!file) return;
+
+  const sizeErr = checkUploadSize([file]);
+  if (sizeErr) {
+    statusEl.textContent = "✘ " + sizeErr;
+    statusEl.className   = "mov-status err";
+    fileInput.value = "";
+    return;
+  }
+
+  statusEl.textContent = "Uploading…";
+  statusEl.className   = "mov-status";
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const base64Content = e.target.result.split(",")[1];
+    callAppsScript('uploadCustomFormFile', [session.token, file.name, base64Content])
+      .then(function (res) {
+        if (res && res.success) {
+          formBuilderFileId   = res.fileId;
+          formBuilderFileName = res.fileName;
+          statusEl.textContent = "✔ " + res.fileName;
+          statusEl.className   = "mov-status ok";
+        } else {
+          statusEl.textContent = "✘ " + ((res && res.message) || "Upload failed");
+          statusEl.className   = "mov-status err";
+        }
+        fileInput.value = "";
+      })
+      .catch(function (err) {
+        statusEl.textContent = "✘ " + err.message;
+        statusEl.className   = "mov-status err";
+        fileInput.value = "";
+      });
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveFormBuilder() {
+  fbClearError();
+  const typeName = document.getElementById('fbTypeName').value.trim();
+  if (!formBuilderEditingTypeName && !typeName) {
+    fbShowError("Kailangan ng pangalan ng Application Form.");
+    return;
+  }
+  if (!formBuilderCriteria.length) {
+    fbShowError("Magdagdag ng kahit isang Criteria.");
+    return;
+  }
+  for (let i = 0; i < formBuilderCriteria.length; i++) {
+    const row = formBuilderCriteria[i];
+    if (!row.criteria || !row.criteria.trim()) {
+      fbShowError("Punan ang criteria label sa item #" + (i + 1) + ".");
+      return;
+    }
+    if (!row.requirements || !row.requirements.length) {
+      fbShowError('Magdagdag ng kahit isang requirement sa criteria "' + row.criteria + '".');
+      return;
+    }
+  }
+
+  const btn = document.getElementById('fbSaveBtn');
+  btn.disabled   = true;
+  btn.textContent = "Saving…";
+
+  const data = { typeName: typeName, criteria: formBuilderCriteria, fileId: formBuilderFileId, fileName: formBuilderFileName };
+  const call = formBuilderEditingTypeName
+    ? callAppsScript('updateCustomApplicationType', [session.token, formBuilderEditingTypeName, data])
+    : callAppsScript('addCustomApplicationType', [session.token, data]);
+
+  call.then(function (res) {
+      btn.disabled    = false;
+      btn.textContent = "Save Application Form";
+      if (!res.success) { fbShowError(res.message); return; }
+      closeFormBuilder();
+      loadManageForms();
+      refreshCustomApplicationTypes();
+    })
+    .catch(function (err) {
+      btn.disabled    = false;
+      btn.textContent = "Save Application Form";
+      fbShowError("Error: " + err.message);
+    });
 }
 
 function escapeHtml(str) {

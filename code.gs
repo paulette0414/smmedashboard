@@ -66,7 +66,15 @@ const API_WHITELIST = {
   // ── In-app notifications (new; checks the session token itself) ───────────
   getMyNotifications: getMyNotifications,
   markNotificationRead: markNotificationRead,
-  markAllNotificationsRead: markAllNotificationsRead
+  markAllNotificationsRead: markAllNotificationsRead,
+  // ── Custom Application Types / "Add Application Form" (new; Admin-only
+  // except the public read, which each function checks itself) ─────────────
+  getCustomApplicationTypesPublic: getCustomApplicationTypesPublic,
+  listCustomApplicationTypes: listCustomApplicationTypes,
+  addCustomApplicationType: addCustomApplicationType,
+  updateCustomApplicationType: updateCustomApplicationType,
+  setCustomApplicationTypeStatus: setCustomApplicationTypeStatus,
+  uploadCustomFormFile: uploadCustomFormFile
   // NOTE: updateStatus() is intentionally NOT exposed directly — it has no
   // permission check of its own. evaluateApplication() wraps it with a
   // role check instead. Call updateStatus() directly only from the Apps
@@ -4801,6 +4809,253 @@ const VERIFIED_REQUIREMENTS = {
 VERIFIED_REQUIREMENTS["PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES FOR PUBLIC AND PRIVATE SCHOOLS WITH EXISTING SENIOR HIGH SCHOOL"] =
   VERIFIED_REQUIREMENTS["APPLICATION FOR ADDITIONAL TRACKS, STRANDS"];
 
+// ─────────────────────────────────────────────────────────────────────────
+// CUSTOM APPLICATION TYPES (Admin-managed "Add Application Form" feature)
+//
+// Every Application Type above (VERIFIED_REQUIREMENTS / APPLICATION_TYPE_FILE_MAP)
+// is hand-added to this file by editing code.gs directly. This section adds a
+// SECOND, parallel source for Application Types that an Admin can add
+// entirely from the "Manage Application Forms" tab in the UI — no code edit,
+// no redeploy — by typing the form's name, building its Criteria/Required
+// Documents list, and uploading the form's PDF directly. Both sources are
+// merged together at read time (see getApplicationRequirements() below and
+// mergeReviewItemsWithRequirements_() which calls it), so everything that
+// already works for a hand-coded Application Type — the Criteria table, MOV
+// attachment, missing-MOV detection (Bahagi 21), Downloadable Forms listing —
+// works the same way for an Admin-added one, with zero special-casing
+// elsewhere. Existing hand-coded types are completely untouched by this —
+// this is purely additive.
+//
+// Stored in its own sheet ("CustomApplicationTypes", auto-created on first
+// use) rather than in code, since only a sheet can be written to from a
+// running script without a new deployment:
+//   TypeName | CriteriaJSON | FileId | FileName | DateAdded | AddedBy | Status
+//
+// "Status" is "Active" or "Disabled" (same vocabulary as the Users sheet).
+// Disabling a custom type (instead of deleting its row outright) hides it
+// from the Application Form / Downloadable Forms pickers for NEW
+// submissions, WITHOUT breaking any application already submitted under it —
+// getApplicationRequirements() below still resolves a Disabled type by name,
+// so an Evaluator/Reviewer can still open an older application's Documents
+// modal and see its full Criteria list. A row is never hard-deleted from
+// this sheet for the same reason.
+// ─────────────────────────────────────────────────────────────────────────
+
+const CUSTOM_FORMS_SHEET_NAME = "CustomApplicationTypes";
+
+function getCustomFormsSheet_() {
+  const ss = SpreadsheetApp.openById("1Yc-DDDU8muIS5HR0OWoLclUnK6RGPrcVe_ydYlgWOYI");
+  let sheet = ss.getSheetByName(CUSTOM_FORMS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CUSTOM_FORMS_SHEET_NAME);
+    sheet.appendRow(["TypeName", "CriteriaJSON", "FileId", "FileName", "DateAdded", "AddedBy", "Status"]);
+    sheet.getRange(1, 1, 1, 7).setFontWeight("bold");
+  }
+  return sheet;
+}
+
+// Reads every custom Application Type row into an array of plain objects.
+// Tolerant of a corrupted/hand-edited CriteriaJSON cell (falls back to []
+// rather than throwing, so one bad row can't take down the whole list).
+function readCustomFormRows_() {
+  const sheet = getCustomFormsSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  const data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
+  return data.map(function (row, i) {
+    let criteria = [];
+    try { criteria = JSON.parse(row[1] || "[]"); } catch (e) { criteria = []; }
+    if (!Array.isArray(criteria)) criteria = [];
+    return {
+      rowIndex1based: i + 2,
+      typeName:       (row[0] || "").toString(),
+      criteria:       criteria,
+      fileId:         (row[2] || "").toString(),
+      fileName:       (row[3] || "").toString(),
+      dateAdded:      row[4],
+      addedBy:        (row[5] || "").toString(),
+      status:         (row[6] || "Active").toString()
+    };
+  }).filter(function (r) { return r.typeName; });
+}
+
+function findCustomFormRow_(rows, typeName) {
+  const target = (typeName || "").toString().trim().toLowerCase();
+  if (!target) return null;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].typeName.trim().toLowerCase() === target) return rows[i];
+  }
+  return null;
+}
+
+// ── Public (no login required): the Active custom types only, merged into
+// APPLICATION_TYPES / downloadableForms on the frontend for every role so
+// new Admin-added forms show up in the Application Form grid and the
+// Downloadable Forms tab, exactly like a hand-coded one.
+function getCustomApplicationTypesPublic() {
+  const rows = readCustomFormRows_().filter(function (r) { return r.status === "Active"; });
+  return {
+    success: true,
+    types: rows.map(function (r) { return { name: r.typeName, fileId: r.fileId || "" }; })
+  };
+}
+
+// ── Admin-only: every custom type (Active + Disabled), full detail — feeds
+// the "Manage Application Forms" tab's list.
+function listCustomApplicationTypes(token) {
+  const session = getSession_(token);
+  if (!session || session.role !== "Admin") return { success: false, message: "Access denied." };
+  const rows = readCustomFormRows_();
+  return {
+    success: true,
+    types: rows.map(function (r) {
+      return {
+        typeName:  r.typeName,
+        criteria:  r.criteria,
+        fileId:    r.fileId,
+        fileName:  r.fileName,
+        dateAdded: r.dateAdded,
+        addedBy:   r.addedBy,
+        status:    r.status
+      };
+    })
+  };
+}
+
+// Shared shape check for the Criteria/Required Documents array an Admin
+// builds in the "Add/Edit Application Form" modal — same shape as a
+// VERIFIED_REQUIREMENTS entry: [{ criteria, requirements: [ string | {text, sub:[...]} ] }]
+function validateCustomCriteria_(criteria) {
+  if (!Array.isArray(criteria) || criteria.length === 0) {
+    return "Kailangan ng kahit isang Criteria / Required Document.";
+  }
+  for (let i = 0; i < criteria.length; i++) {
+    const row = criteria[i];
+    if (!row || !(row.criteria || "").toString().trim()) {
+      return "Punan ang criteria label sa item #" + (i + 1) + ".";
+    }
+    if (!Array.isArray(row.requirements) || row.requirements.length === 0) {
+      return "Magdagdag ng kahit isang requirement sa criteria \"" + row.criteria + "\".";
+    }
+  }
+  return "";
+}
+
+// Admin-only: add a brand-new Application Type. data = { typeName, criteria, fileId, fileName }
+// typeName is uppercased for consistency with every hand-coded Application
+// Type (they're all stored in ALL CAPS), and checked for collisions against
+// BOTH the hand-coded lists and every existing custom row (case-insensitive)
+// so a typo can't silently shadow — or be shadowed by — an existing type.
+function addCustomApplicationType(token, data) {
+  const session = getSession_(token);
+  if (!session || session.role !== "Admin") return { success: false, message: "Access denied." };
+
+  data = data || {};
+  const typeName = (data.typeName || "").toString().trim().toUpperCase();
+  if (!typeName) return { success: false, message: "Kailangan ng pangalan ng Application Form." };
+
+  const criteriaErr = validateCustomCriteria_(data.criteria);
+  if (criteriaErr) return { success: false, message: criteriaErr };
+
+  if (VERIFIED_REQUIREMENTS[typeName] || APPLICATION_TYPE_FILE_MAP[typeName]) {
+    return { success: false, message: "May existing na Application Type na gumagamit na ng pangalang ito." };
+  }
+  if (findCustomFormRow_(readCustomFormRows_(), typeName)) {
+    return { success: false, message: "May Application Form na gumagamit na ng pangalang ito." };
+  }
+
+  const sheet = getCustomFormsSheet_();
+  const dateAdded = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
+  sheet.appendRow([
+    typeName,
+    JSON.stringify(data.criteria),
+    (data.fileId || "").toString(),
+    (data.fileName || "").toString(),
+    dateAdded,
+    session.fullName || session.username,
+    "Active"
+  ]);
+  return { success: true, message: "Naidagdag ang bagong Application Form: " + typeName };
+}
+
+// Admin-only: edit an existing custom type's Criteria list and/or replace its
+// attached PDF. The typeName itself is never renamed here — applications
+// already submitted under it reference this exact string, so renaming would
+// orphan them; an Admin who truly needs a different name should add a new
+// one and Disable the old one instead.
+function updateCustomApplicationType(token, typeName, data) {
+  const session = getSession_(token);
+  if (!session || session.role !== "Admin") return { success: false, message: "Access denied." };
+
+  data = data || {};
+  const criteriaErr = validateCustomCriteria_(data.criteria);
+  if (criteriaErr) return { success: false, message: criteriaErr };
+
+  const rows = readCustomFormRows_();
+  const row = findCustomFormRow_(rows, typeName);
+  if (!row) return { success: false, message: "Application Form not found." };
+
+  const sheet = getCustomFormsSheet_();
+  sheet.getRange(row.rowIndex1based, 2).setValue(JSON.stringify(data.criteria));
+  if (data.fileId) {
+    sheet.getRange(row.rowIndex1based, 3).setValue((data.fileId || "").toString());
+    sheet.getRange(row.rowIndex1based, 4).setValue((data.fileName || "").toString());
+  }
+  return { success: true, message: "Na-update ang Application Form: " + row.typeName };
+}
+
+// Admin-only: Active <-> Disabled (see the big comment above this section for
+// why this is a soft toggle rather than a hard delete).
+function setCustomApplicationTypeStatus(token, typeName, newStatus) {
+  const session = getSession_(token);
+  if (!session || session.role !== "Admin") return { success: false, message: "Access denied." };
+  if (newStatus !== "Active" && newStatus !== "Disabled") return { success: false, message: "Invalid status." };
+
+  const rows = readCustomFormRows_();
+  const row = findCustomFormRow_(rows, typeName);
+  if (!row) return { success: false, message: "Application Form not found." };
+
+  getCustomFormsSheet_().getRange(row.rowIndex1based, 7).setValue(newStatus);
+  return { success: true, message: "'" + row.typeName + "' is now " + newStatus + "." };
+}
+
+// Admin-only: uploads the official PDF for a custom Application Type into its
+// own subfolder ("Admin-Added Forms") inside the same shared Drive folder
+// that already holds every hand-coded type's form
+// (https://drive.google.com/drive/folders/1HtZ_lmJoqnJgSms4H9PCBnkUoIQC8GNA) —
+// this is the step that replaces the old manual "upload to Drive yourself,
+// then paste me the File ID" workflow.
+function uploadCustomFormFile(token, fileName, base64Data) {
+  const session = getSession_(token);
+  if (!session || session.role !== "Admin") return { success: false, message: "Access denied." };
+  try {
+    const rootFolder = DriveApp.getFolderById("1HtZ_lmJoqnJgSms4H9PCBnkUoIQC8GNA");
+    const folder      = getOrCreateSubfolder_(rootFolder, "Admin-Added Forms");
+
+    const ext     = (fileName || "").toString().split(".").pop().toLowerCase();
+    const mimeMap = {
+      pdf:  "application/pdf",
+      doc:  "application/msword",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    };
+    const mimeType = mimeMap[ext] || "application/octet-stream";
+
+    const decodedBytes = Utilities.base64Decode(base64Data);
+    const blob         = Utilities.newBlob(decodedBytes, mimeType, fileName);
+    const file         = folder.createFile(blob);
+
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (shareErr) {
+      // Non-fatal — file is still uploaded and linked
+    }
+
+    return { success: true, fileId: file.getId(), fileName: file.getName(), fileUrl: file.getUrl() };
+  } catch (err) {
+    return { success: false, message: "Error uploading file: " + err.message };
+  }
+}
+
 // ── getApplicationRequirements ────────────────────────────────────────────────
 // Given an Application Type (sub-menu selection), returns its Criteria/Required
 // Documents/MOV data.
@@ -4812,8 +5067,9 @@ VERIFIED_REQUIREMENTS["PROCESSING SHEET ON THE APPLICATION FOR ADDITIONAL SHS TR
 //   3. If neither works, a Drive preview link is returned so the client can
 //      embed the document directly for manual reading (mode: "preview").
 function getApplicationRequirements(applicationType) {
-  const typeKey = (applicationType || "").toString().trim();
-  const fileId  = APPLICATION_TYPE_FILE_MAP[typeKey];
+  const typeKey   = (applicationType || "").toString().trim();
+  const customRow = findCustomFormRow_(readCustomFormRows_(), typeKey);
+  const fileId    = APPLICATION_TYPE_FILE_MAP[typeKey] || (customRow ? customRow.fileId : "") || "";
 
   const previewUrl  = fileId ? "https://drive.google.com/file/d/" + fileId + "/preview" : "";
   const downloadUrl = fileId ? "https://drive.google.com/uc?export=download&id=" + fileId : "";
@@ -4824,6 +5080,22 @@ function getApplicationRequirements(applicationType) {
       success:     true,
       mode:        "table",
       rows:        VERIFIED_REQUIREMENTS[typeKey],
+      fileName:    typeKey,
+      previewUrl:  previewUrl,
+      downloadUrl: downloadUrl
+    };
+  }
+
+  // 1.5. Admin-added custom Application Type (see "CUSTOM APPLICATION TYPES"
+  // section above) — same shape/behavior as a hand-verified entry, just
+  // sourced from the CustomApplicationTypes sheet instead of this file.
+  // Resolved by name regardless of Active/Disabled status, so an older
+  // application submitted under a since-Disabled type can still be reviewed.
+  if (customRow) {
+    return {
+      success:     true,
+      mode:        "table",
+      rows:        customRow.criteria,
       fileName:    typeKey,
       previewUrl:  previewUrl,
       downloadUrl: downloadUrl
