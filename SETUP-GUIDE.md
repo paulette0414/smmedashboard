@@ -426,3 +426,15 @@ Kung walang laman ang isang field (hal. walang naitalang Administrator), lalabas
 5. I-Disable ito — dapat mawala ito sa Application Form grid/Downloadable Forms PERO makikita pa rin ang naisumite nang application (Bahagi 3-4) sa "📄 Review" ng Evaluator/Admin nang buo pa rin ang Criteria list.
 6. I-Enable ulit — dapat bumalik ito sa mga listahan.
 7. I-Edit ang isa sa mga naidagdag na form — subukang magdagdag/mag-alis ng criteria/requirement/sub-item, at palitan ang naka-attach na PDF — dapat masalamin agad ang mga pagbabago pagkatapos i-save.
+
+## Bahagi 25 — Tinanggal sa Application Form: "Additional SHS Tracks and Cluster of Electives for Public and Private Schools with Existing SHS"
+
+Inalis na sa **Application Form** (grid at sidebar submenu) ang Application Type na **"APPLICATION FOR ADDITIONAL SHS TRACKS AND CLUSTER OF ELECTIVES FOR PUBLIC AND PRIVATE SCHOOLS WITH EXISTING SENIOR HIGH SCHOOL"** (sa code, may "PROCESSING SHEET ON THE" sa unahan nito) — wala na itong makikita ang mga School/User na mapipili para sa bagong submission.
+
+**Hindi ginalaw (sadya):**
+- Ang Criteria data nito sa `code.gs` (`VERIFIED_REQUIREMENTS`) — para ang mga application na naisumite na gamit ang type na ito ay mabubuksan pa rin sa "📄 Review"/"📄 View" nang buo ang Criteria list.
+- Ang entry nito sa **Downloadable Forms** (RO-QAD-F-009) — nandoon pa rin ang PDF para ma-download. Sabihan mo lang ako kung gusto mo itong alisin din doon.
+
+Paalala: ang "APPLICATION FOR ADDITIONAL TRACKS, STRANDS" (RO-QAD-F-009, hiwalay na type) ay nananatili sa Application Form.
+
+**Paano i-test:** mag-login bilang User, buksan ang Application Form tab — hindi na dapat lumabas ang type na nabanggit sa grid o submenu.
